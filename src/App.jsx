@@ -9,7 +9,6 @@ import {
   Package,
   MapPin,
   Timer,
-  Pill,
   CheckCircle,
   AlertTriangle,
 } from "lucide-react";
@@ -17,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { loadFromLS, saveToLS, uid } from "@/lib/utils";
 import { seedVendors, seedProducts } from "@/lib/data";
+import pdLogo from "@/assets/pd-logo.png";
 
 import Landing from "@/pages/Landing";
 import AuthFlow from "@/pages/AuthFlow";
@@ -287,8 +287,7 @@ export default function App() {
       <div className="sticky top-0 z-40 bg-white/70 backdrop-blur border-b border-slate-200">
         <div className="mx-auto max-w-5xl px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Pill className="h-5 w-5" />
-            <span className="text-2xl leading-none">PD</span>
+            <img src={pdLogo} alt="PD — Healthcare at your doorstep" className="h-7 w-auto select-none" />
           </div>
           <div className="text-xs text-slate-700 flex items-center gap-2">
             <MapPin className="h-4 w-4" /> Kuje, Abuja
@@ -358,10 +357,3 @@ export default function App() {
     </div>
   );
 }
-// This code defines the main application component for a pharmacy delivery app.
-// It manages the app's state, handles navigation between screens, and provides functionality for users to
-// interact with vendors, products, and their cart.
-// The app includes features for customers to browse products, manage their cart, and place orders,
-// as well as a vendor dashboard for pharmacists to manage their products and orders.
-// The UI is built using React and styled with Tailwind CSS, with animations handled by Framer Motion.
-// The app also includes a simple toast notification system to provide feedback to users on their actions
