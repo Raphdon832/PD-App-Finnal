@@ -1,0 +1,39 @@
+/* Tailwind v4 single import */
+@import "tailwindcss";
+
+/* Display font */
+@import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap");
+
+:root {
+  --safe-bottom: env(safe-area-inset-bottom);
+  font-family: "Bebas Neue", system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Reset the Vite template centering that was breaking mobile layout */
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  display: block;
+  background: #fff;
+  color: #111827;
+}
+
+/* Links & buttons (fallback defaults; Tailwind classes will override) */
+a { text-decoration: none; }
+button { font-family: inherit; }
+
+/* Safe-area padding for iOS home indicator */
+nav[role="navigation"], nav.fixed { padding-bottom: var(--safe-bottom); }
+
+/* Optional: subtle background watermark used on auth pages */
+.bg-watermark {
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      rgba(0,0,0,0.035) 0 2px,
+      transparent 2px 72px
+    );
+  background-size: 100% 72px;
+}
