@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -64,6 +64,26 @@ export default function AuthFlow({ role = "customer", onDone, onBack }) {
     }
   };
 
+  // ----- Segmented control (Sign up / Sign in) -----
+  const segRef = useRef(null);
+  const activeIndex = mode === "signup" ? 0 : 1;
+
+  useEffect(() => {
+    const el = segRef.current;
+    if (!el) return;
+    const onKey = (e) => {
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        e.preventDefault();
+        setMode((m) => (m === "signup" ? (e.key === "ArrowRight" ? "signin" : "signup") : (e.key === "ArrowLeft" ? "signup" : "signin")));
+      } else if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        // no-op; user can Tab to fields next
+      }
+    };
+    el.addEventListener("keydown", onKey);
+    return () => el.removeEventListener("keydown", onKey);
+  }, []);
+
   return (
     <div className="min-h-[calc(100vh-160px)] bg-watermark flex items-start sm:items-center justify-center">
       <div className="w-full max-w-md px-4 py-8 relative pt-12">
@@ -83,23 +103,64 @@ export default function AuthFlow({ role = "customer", onDone, onBack }) {
           <div className="tracking-[0.2em] text-base">HEALTHCARE AT YOUR DOORSTEP</div>
         </div>
 
-        {/* Mode Toggle */}
-        <div className="grid grid-cols-2 gap-2 mb-4">
-          <Button
-            variant={mode === "signup" ? "default" : "outline"}
-            className="h-10"
-            onClick={() => setMode("signup")}
-          >
-            Sign up
-          </Button>
-          <Button
-            variant={mode === "signin" ? "default" : "outline"}
-            className="h-10"
-            onClick={() => setMode("signin")}
-          >
-            Sign in
-          </Button>
+{/* Segmented Toggle */}
+<div
+  ref={segRef}
+  role="tablist"
+  aria-label="Auth mode"
+  tabIndex={0}
+  className="relative mb-6"
+>
+  <div
+    className="
+      relative h-[26px] w-full rounded-[5px]
+      bg-[#E7E7E7]
+      border border-[#E7E7E7]
+      overflow-hidden
+    "
+  >
+    {/* sliding thumb */}
+    <span
+      aria-hidden="true"
+      className={`
+        absolute left-0 top-0 h-[26px] w-1/2 rounded-[5px]
+        bg-white transition-transform duration-200 ease-out
+        ${activeIndex === 0 ? "translate-x-0" : "translate-x-full"}
+      `}
+    />
+    <div className="relative z-10 grid grid-cols-2 h-full">
+      <button
+        role="tab"
+        aria-selected={mode === "signup"}
+        type="button"
+        onClick={() => setMode("signup")}
+        className={`
+          text-xs font-semibold focus:outline-none
+          ${mode === "signup" ? "text-[#000000]" : "text-[#BCBCBC]"}
+        `}
+      >
+        <div className="w-full h-full flex items-center justify-center">
+          SIGN UP
         </div>
+      </button>
+      <button
+        role="tab"
+        aria-selected={mode === "signin"}
+        type="button"
+        onClick={() => setMode("signin")}
+        className={`
+          text-xs font-semibold focus:outline-none
+          ${mode === "signin" ? "text-[#000000]" : "text-[#BCBCBC]"}
+        `}
+      >
+        <div className="w-full h-full flex items-center justify-center">
+          SIGN IN
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+
 
         <div className="space-y-4">
           {mode === "signup" ? (
