@@ -15,7 +15,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { loadFromLS, saveToLS, uid } from "@/lib/utils";
-import { seedVendors, seedProducts } from "@/lib/data";
+import { seedVendors as baseSeedVendors, seedProducts } from "@/lib/data";
 import pdLogo from "@/assets/pd-logo.png";
 
 import Landing from "@/pages/Landing";
@@ -31,6 +31,35 @@ import VendorDashboard from "@/pages/VendorDashboard";
 import VendorProfile from "@/pages/VendorProfile";
 import Profile from "@/pages/Profile";
 
+/* --- helpers for geolocation + ETA --- */
+const toRad = (d) => (d * Math.PI) / 180;
+function haversineKm(a, b) {
+  if (!a || !b) return null;
+  const R = 6371;
+  const dLat = toRad(b.lat - a.lat);
+  const dLon = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(s));
+}
+function etaMinutes(distanceKm) {
+  if (distanceKm == null) return null;
+  const avgKmh = 22;
+  const prep = 8;
+  const mins = prep + (distanceKm / avgKmh) * 60;
+  return Math.max(5, Math.min(90, Math.round(mins)));
+}
+
+/* add rough coords to seed vendors (Abuja areas) */
+const seedVendors = baseSeedVendors.map((v) => {
+  if (v.name.includes("ZenCare")) return { ...v, lat: 8.854, lng: 7.227 };   // Kuje
+  if (v.name.includes("GreenLeaf")) return { ...v, lat: 9.030, lng: 7.488 }; // Garki
+  return v;
+});
+
 export default function App() {
   const [state, setState] = React.useState(() =>
     loadFromLS("PD_STATE", {
@@ -43,9 +72,23 @@ export default function App() {
       orders: [],
       threads: {},
       toasts: [],
+      userLoc: null, // {lat, lng}
     })
   );
   React.useEffect(() => saveToLS("PD_STATE", state), [state]);
+
+  /* get current browser location once */
+  React.useEffect(() => {
+    if (!("geolocation" in navigator)) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setState((s) => ({ ...s, userLoc: { lat: latitude, lng: longitude } }));
+      },
+      () => {},
+      { enableHighAccuracy: true, maximumAge: 60_000, timeout: 10_000 }
+    );
+  }, []);
 
   const me = state.me;
   const go = (screen, screenParams = {}) =>
@@ -65,6 +108,40 @@ export default function App() {
 
   const vendorById = (id) => state.vendors.find((v) => v.id === id);
   const productById = (id) => state.products.find((p) => p.id === id);
+
+  /* choose a target vendor (current screen's vendor, else nearest) */
+  const targetVendor = React.useMemo(() => {
+    if (state.screen === "vendorProfile" && state.screenParams.id) {
+      return vendorById(state.screenParams.id);
+    }
+    if (state.screen === "product" && state.screenParams.id) {
+      const p = productById(state.screenParams.id);
+      if (p) return vendorById(p.vendorId);
+    }
+    if (!state.userLoc) return null;
+    let best = null;
+    let bestD = Infinity;
+    for (const v of state.vendors) {
+      if (typeof v.lat !== "number" || typeof v.lng !== "number") continue;
+      const d = haversineKm(state.userLoc, { lat: v.lat, lng: v.lng });
+      if (d != null && d < bestD) {
+        best = v;
+        bestD = d;
+      }
+    }
+    return best;
+  }, [state.screen, state.screenParams, state.vendors, state.userLoc]);
+
+  const distanceKm = React.useMemo(() => {
+    if (!state.userLoc || !targetVendor) return null;
+    if (targetVendor.lat == null || targetVendor.lng == null) return null;
+    return haversineKm(state.userLoc, {
+      lat: targetVendor.lat,
+      lng: targetVendor.lng,
+    });
+  }, [state.userLoc, targetVendor]);
+
+  const dynamicEta = etaMinutes(distanceKm);
 
   const addToCart = (productId) =>
     setState((s) => {
@@ -227,7 +304,7 @@ export default function App() {
                 const vName = it.vendorName || state.me?.pharmacyName || "My Pharmacy";
                 let v = vendors.find((v) => v.name === vName);
                 if (!v) {
-                  v = { id: uid(), name: vName, bio: "", address: "", contact: "", etaMins: 30 };
+                  v = { id: uid(), name: vName, bio: "", address: "", contact: "", etaMins: 30, lat: null, lng: null };
                   vendors.push(v);
                   createdVendors++;
                 }
@@ -282,6 +359,10 @@ export default function App() {
         { key: "profile", label: "Profile", icon: <User2 className="h-5 w-5" />, onClick: () => go("profile") },
       ];
 
+  const locText = state.userLoc
+    ? `${state.userLoc.lat.toFixed(2)}°, ${state.userLoc.lng.toFixed(2)}°`
+    : "Location off";
+
   return (
     <div className="min-h-screen bg-white text-slate-900">
       <div className="sticky top-0 z-40 bg-white/70 backdrop-blur border-b border-slate-200">
@@ -289,11 +370,14 @@ export default function App() {
           <div className="flex items-center gap-2">
             <img src={pdLogo} alt="PD — Healthcare at your doorstep" className="h-7 w-auto select-none" />
           </div>
-          <div className="text-xs text-slate-700 flex items-center gap-2">
-            <MapPin className="h-4 w-4" /> Kuje, Abuja
+          <div className="text-xs text-slate-700 flex items-center gap-3">
+            <span className="inline-flex items-center gap-1">
+              <MapPin className="h-4 w-4" />
+              {locText}
+            </span>
             <span className="inline-flex items-center gap-1">
               <Timer className="h-4 w-4" />
-              35 mins
+              {dynamicEta != null ? `${dynamicEta} mins` : "—"}
             </span>
           </div>
         </div>
