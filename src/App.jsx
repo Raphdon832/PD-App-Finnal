@@ -74,10 +74,9 @@ async function reverseGeocode(lat, lng) {
     )}&lon=${encodeURIComponent(lng)}&zoom=14&addressdetails=1`;
     const res = await fetch(url, {
       headers: {
-        "Accept": "application/json",
-        // Nominatim asks for a valid UA / email; customize if you host this
+        Accept: "application/json",
         "User-Agent": "PD-Prototype/1.0 (demo)",
-        "Referer": window.location.origin,
+        Referer: window.location.origin,
       },
     });
     if (!res.ok) throw new Error("geocode failed");
@@ -202,6 +201,10 @@ export default function App() {
   }, [state.userLoc, targetVendor]);
 
   const dynamicEta = etaMinutes(distanceKm);
+  const etaLabel =
+    dynamicEta != null
+      ? `${dynamicEta} mins${targetVendor?.name ? ` to ${targetVendor.name}` : ""}`
+      : "—";
 
   const addToCart = (productId) =>
     setState((s) => {
@@ -437,7 +440,7 @@ export default function App() {
             </span>
             <span className="inline-flex items-center gap-1">
               <Timer className="h-4 w-4" />
-              {dynamicEta != null ? `${dynamicEta} mins` : "—"}
+              {etaLabel}
             </span>
           </div>
         </div>
