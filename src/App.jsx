@@ -31,7 +31,6 @@ import VendorDashboard from "@/pages/VendorDashboard";
 import VendorProfile from "@/pages/VendorProfile";
 import Profile from "@/pages/Profile";
 
-/* --- helpers for geolocation + ETA --- */
 const toRad = (d) => (d * Math.PI) / 180;
 function haversineKm(a, b) {
   if (!a || !b) return null;
@@ -53,12 +52,61 @@ function etaMinutes(distanceKm) {
   return Math.max(5, Math.min(90, Math.round(mins)));
 }
 
-/* add rough coords to seed vendors (Abuja areas) */
+/* seed vendor coords (rough Abuja areas) */
 const seedVendors = baseSeedVendors.map((v) => {
-  if (v.name.includes("ZenCare")) return { ...v, lat: 8.854, lng: 7.227 };   // Kuje
-  if (v.name.includes("GreenLeaf")) return { ...v, lat: 9.030, lng: 7.488 }; // Garki
+  if (v.name.includes("ZenCare")) return { ...v, lat: 8.854, lng: 7.227 };
+  if (v.name.includes("GreenLeaf")) return { ...v, lat: 9.03, lng: 7.488 };
   return v;
 });
+
+/* small cache for reverse geocoding */
+const geoCacheKey = (lat, lng) =>
+  `PD_GEOCACHE_${lat.toFixed(3)}_${lng.toFixed(3)}`;
+
+async function reverseGeocode(lat, lng) {
+  try {
+    const key = geoCacheKey(lat, lng);
+    const cached = localStorage.getItem(key);
+    if (cached) return JSON.parse(cached);
+
+    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(
+      lat
+    )}&lon=${encodeURIComponent(lng)}&zoom=14&addressdetails=1`;
+    const res = await fetch(url, {
+      headers: {
+        "Accept": "application/json",
+        // Nominatim asks for a valid UA / email; customize if you host this
+        "User-Agent": "PD-Prototype/1.0 (demo)",
+        "Referer": window.location.origin,
+      },
+    });
+    if (!res.ok) throw new Error("geocode failed");
+    const data = await res.json();
+    const a = data.address || {};
+    const locality =
+      a.city || a.town || a.village || a.suburb || a.residential || a.county;
+    const region = a.state || a.region;
+    const country = a.country_code ? a.country_code.toUpperCase() : a.country;
+    const label =
+      [locality, region].filter(Boolean).join(", ") ||
+      data.display_name?.split(",").slice(0, 2).join(", ");
+    const result = {
+      label: label || `${lat.toFixed(2)}°, ${lng.toFixed(2)}°`,
+      short: locality || label || "",
+      region: region || "",
+      country: country || "",
+    };
+    localStorage.setItem(key, JSON.stringify(result));
+    return result;
+  } catch {
+    return {
+      label: `${lat.toFixed(2)}°, ${lng.toFixed(2)}°`,
+      short: "",
+      region: "",
+      country: "",
+    };
+  }
+}
 
 export default function App() {
   const [state, setState] = React.useState(() =>
@@ -72,12 +120,12 @@ export default function App() {
       orders: [],
       threads: {},
       toasts: [],
-      userLoc: null, // {lat, lng}
+      userLoc: null,
+      userPlace: null,
     })
   );
   React.useEffect(() => saveToLS("PD_STATE", state), [state]);
 
-  /* get current browser location once */
   React.useEffect(() => {
     if (!("geolocation" in navigator)) return;
     navigator.geolocation.getCurrentPosition(
@@ -89,6 +137,19 @@ export default function App() {
       { enableHighAccuracy: true, maximumAge: 60_000, timeout: 10_000 }
     );
   }, []);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    async function run() {
+      if (!state.userLoc) return;
+      const place = await reverseGeocode(state.userLoc.lat, state.userLoc.lng);
+      if (!cancelled) setState((s) => ({ ...s, userPlace: place }));
+    }
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [state.userLoc]);
 
   const me = state.me;
   const go = (screen, screenParams = {}) =>
@@ -109,7 +170,6 @@ export default function App() {
   const vendorById = (id) => state.vendors.find((v) => v.id === id);
   const productById = (id) => state.products.find((p) => p.id === id);
 
-  /* choose a target vendor (current screen's vendor, else nearest) */
   const targetVendor = React.useMemo(() => {
     if (state.screen === "vendorProfile" && state.screenParams.id) {
       return vendorById(state.screenParams.id);
@@ -359,9 +419,9 @@ export default function App() {
         { key: "profile", label: "Profile", icon: <User2 className="h-5 w-5" />, onClick: () => go("profile") },
       ];
 
-  const locText = state.userLoc
-    ? `${state.userLoc.lat.toFixed(2)}°, ${state.userLoc.lng.toFixed(2)}°`
-    : "Location off";
+  const locText =
+    state.userPlace?.label ||
+    (state.userLoc ? `${state.userLoc.lat.toFixed(2)}°, ${state.userLoc.lng.toFixed(2)}°` : "Location off");
 
   return (
     <div className="min-h-screen bg-white text-slate-900">
