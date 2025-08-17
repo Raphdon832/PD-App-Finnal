@@ -276,22 +276,25 @@ export default function App() {
   const Screens = {
     landing: <Landing onSelectRole={(role) => go("auth", { role })} />,
     auth: (
-      <AuthFlow
-        role={state.screenParams.role}
-        onDone={(user) =>
-          setState((s) => ({
-            ...s,
-            me: user,
-            screen: user.role === "customer" ? "home" : "vendorDashboard",
-          }))
-        }
-      />
-    ),
+  <AuthFlow
+    role={state.screenParams.role}
+    onBack={() => go("landing")}
+    onDone={(user) =>
+      setState((s) => ({
+        ...s,
+        me: user,
+        screen: user.role === "customer" ? "home" : "vendorDashboard",
+      }))
+    }
+  />
+),
+
     home: (
       <Home
         go={go}
         vendors={state.vendors}
         products={state.products}
+        userLoc={state.userLoc}
         addToCart={(id) => {
           addToCart(id);
           toast("Added to cart");
@@ -303,6 +306,7 @@ export default function App() {
         go={go}
         vendors={state.vendors}
         products={state.products}
+        userLoc={state.userLoc}
         addToCart={(id) => {
           addToCart(id);
           toast("Added to cart");
@@ -440,7 +444,7 @@ export default function App() {
             </span>
             <span className="inline-flex items-center gap-1">
               <Timer className="h-4 w-4" />
-              {etaLabel}
+              {dynamicEta != null && targetVendor?.name ? `${dynamicEta} mins to ${targetVendor.name}` : etaLabel}
             </span>
           </div>
         </div>
