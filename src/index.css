@@ -1,5 +1,6 @@
 /* Tailwind v4 single import */
 @import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
 
 /* Display font */
 @import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap");

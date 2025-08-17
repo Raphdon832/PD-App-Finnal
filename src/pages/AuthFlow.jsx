@@ -3,22 +3,37 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import pdLogo from "@/assets/pd-logo.png";
+import MapPicker from "@/components/MapPicker";
 
 export default function AuthFlow({ role = "customer", onDone }) {
   const isCustomer = role === "customer";
   const [name, setName] = useState("");
+  const [pharmacyName, setPharmacyName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [address, setAddress] = useState("");
+  const [pin, setPin] = useState(null);
 
   const submit = () => {
-    if (!name.trim()) return alert(isCustomer ? "Enter your display name" : "Enter pharmacy name");
+    if (!name.trim()) return alert(isCustomer ? "Enter your display name" : "Enter contact name");
     if (!email.trim()) return alert("Enter your email");
     if (isCustomer) {
       onDone({ id: `${Date.now()}`, role: "customer", name: name.trim() });
     } else {
-      onDone({ id: `${Date.now()}`, role: "pharmacist", name: name.trim(), pharmacyName: name.trim() });
+      if (!pharmacyName.trim()) return alert("Enter pharmacy name");
+      if (!address.trim()) return alert("Enter pharmacy address");
+      if (!pin?.lat || !pin?.lng) return alert("Tap the map to set the pharmacy location");
+      onDone({
+        id: `${Date.now()}`,
+        role: "pharmacist",
+        name: name.trim(),
+        pharmacyName: pharmacyName.trim(),
+        pharmacyAddress: address.trim(),
+        pharmacyLocation: { lat: pin.lat, lng: pin.lng },
+        email,
+        phone,
+      });
     }
   };
 
@@ -32,11 +47,11 @@ export default function AuthFlow({ role = "customer", onDone }) {
 
         <div className="space-y-4">
           <div className="grid gap-2">
-            <Label className="tracking-wide">{isCustomer ? "DISPLAY NAME" : "PHARMACY NAME"}</Label>
+            <Label className="tracking-wide">{isCustomer ? "DISPLAY NAME" : "CONTACT NAME"}</Label>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder={isCustomer ? "Jane Doe" : "HopeWell Pharmacy"}
+              placeholder={isCustomer ? "Jane Doe" : "Full name"}
               className="h-12 rounded-2xl text-base"
             />
           </div>
@@ -77,12 +92,13 @@ export default function AuthFlow({ role = "customer", onDone }) {
           ) : (
             <>
               <div className="grid gap-2">
-                <Label className="tracking-wide">CATEGORY</Label>
-                <select className="h-12 rounded-2xl border px-3 text-base">
-                  <option>Retail Pharmacy</option>
-                  <option>Hospital Pharmacy</option>
-                  <option>Wholesale</option>
-                </select>
+                <Label className="tracking-wide">PHARMACY NAME</Label>
+                <Input
+                  value={pharmacyName}
+                  onChange={(e) => setPharmacyName(e.target.value)}
+                  placeholder="HopeWell Pharmacy"
+                  className="h-12 rounded-2xl text-base"
+                />
               </div>
               <div className="grid gap-2">
                 <Label className="tracking-wide">PHONE NUMBER</Label>
@@ -98,9 +114,16 @@ export default function AuthFlow({ role = "customer", onDone }) {
                 <Input
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  placeholder="Kuje, Abuja"
+                  placeholder="Street, Area, City"
                   className="h-12 rounded-2xl text-base"
                 />
+              </div>
+              <div className="grid gap-2">
+                <Label className="tracking-wide">SET LOCATION ON MAP</Label>
+                <MapPicker value={pin || { lat: 9.0765, lng: 7.3986 }} onChange={setPin} />
+                <div className="text-xs text-slate-500">
+                  {pin ? `Pinned: ${pin.lat.toFixed(5)}, ${pin.lng.toFixed(5)}` : "Tap map to drop a pin"}
+                </div>
               </div>
             </>
           )}
@@ -108,41 +131,6 @@ export default function AuthFlow({ role = "customer", onDone }) {
           <Button className="w-full h-12 rounded-2xl text-lg" onClick={submit}>
             {isCustomer ? "SIGN UP" : "REGISTER"}
           </Button>
-
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="bg-white px-3">
-                {isCustomer ? "SIGN UP USING" : "BY SIGNING UP, YOU AGREE TO OUR TERMS"}
-              </span>
-            </div>
-          </div>
-
-          {isCustomer && (
-            <div className="grid gap-3">
-              <Button variant="outline" className="h-12 rounded-2xl">
-                GOOGLE
-              </Button>
-              <Button variant="outline" className="h-12 rounded-2xl">
-                APPLE
-              </Button>
-            </div>
-          )}
-
-          <div className="text-center mt-6">
-            <div className="inline-flex items-center gap-3 w-full">
-              <span className="flex-1 border-t" />
-              <span className="text-sm">ALREADY HAVE AN ACCOUNT?</span>
-              <span className="flex-1 border-t" />
-            </div>
-            <div className="mt-3">
-              <Button variant="outline" className="w-full h-12 rounded-2xl">
-                SIGN IN
-              </Button>
-            </div>
-          </div>
         </div>
       </div>
     </div>
