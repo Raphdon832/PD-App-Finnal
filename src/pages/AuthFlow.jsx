@@ -4,29 +4,63 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import pdLogo from "@/assets/pd-logo.png";
 import { ArrowLeft } from "lucide-react";
+import MapPicker from "@/components/MapPicker";
+import { createUser, signIn } from "@/lib/auth";
 
 export default function AuthFlow({ role = "customer", onDone, onBack }) {
+  const [mode, setMode] = useState("signup"); // "signup" | "signin"
   const isCustomer = role === "customer";
+
   const [name, setName] = useState("");
-  const [pharmacy, setPharmacy] = useState("");
+  const [pharmacyName, setPharmacyName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [address, setAddress] = useState("");
+  const [pin, setPin] = useState(null);
 
-  const submit = () => {
-    if (!name.trim()) return alert("Enter your name");
-    if (!email.trim()) return alert("Enter your email");
-    if (isCustomer) {
-      onDone({ id: `${Date.now()}`, role: "customer", name: name.trim() });
-    } else {
-      if (!pharmacy.trim()) return alert("Enter pharmacy name");
-      onDone({
-        id: `${Date.now()}`,
-        role: "pharmacist",
-        name: name.trim(),
-        pharmacyName: pharmacy.trim(),
-      });
+  const submit = async () => {
+    try {
+      if (mode === "signin") {
+        if (!email.trim()) throw new Error("Enter your email");
+        if (!password) throw new Error("Enter your password");
+        const user = await signIn(email, password);
+        if (user.role !== role) throw new Error(`This account is registered as ${user.role}`);
+        onDone(user);
+        return;
+      }
+
+      if (!name.trim()) throw new Error(isCustomer ? "Enter your display name" : "Enter contact name");
+      if (!email.trim()) throw new Error("Enter your email");
+      if (!password) throw new Error("Enter a password");
+
+      if (isCustomer) {
+        const user = await createUser({
+          role: "customer",
+          name: name.trim(),
+          email,
+          phone,
+          password,
+        });
+        onDone(user);
+      } else {
+        if (!pharmacyName.trim()) throw new Error("Enter pharmacy name");
+        if (!address.trim()) throw new Error("Enter pharmacy address");
+        if (!pin?.lat || !pin?.lng) throw new Error("Tap the map to set the pharmacy location");
+        const user = await createUser({
+          role: "pharmacist",
+          name: name.trim(),
+          email,
+          phone,
+          password,
+          pharmacyName: pharmacyName.trim(),
+          pharmacyAddress: address.trim(),
+          pharmacyLocation: { lat: pin.lat, lng: pin.lng },
+        });
+        onDone(user);
+      }
+    } catch (e) {
+      alert(e.message || "Something went wrong");
     }
   };
 
@@ -44,77 +78,108 @@ export default function AuthFlow({ role = "customer", onDone, onBack }) {
           </button>
         )}
 
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <img src={pdLogo} alt="PD Logo" className="mx-auto h-16 mb-2" />
           <div className="tracking-[0.2em] text-base">HEALTHCARE AT YOUR DOORSTEP</div>
         </div>
 
+        {/* Mode Toggle */}
+        <div className="grid grid-cols-2 gap-2 mb-4">
+          <Button
+            variant={mode === "signup" ? "default" : "outline"}
+            className="h-10"
+            onClick={() => setMode("signup")}
+          >
+            Sign up
+          </Button>
+          <Button
+            variant={mode === "signin" ? "default" : "outline"}
+            className="h-10"
+            onClick={() => setMode("signin")}
+          >
+            Sign in
+          </Button>
+        </div>
+
         <div className="space-y-4">
-          <div className="grid gap-2">
-            <Label className="tracking-wide">{isCustomer ? "DISPLAY NAME" : "PHARM NAME"}</Label>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={isCustomer ? "Jane Doe" : "HopeWell Pharmacy"}
-              className="h-12 rounded-2xl text-base"
-            />
-          </div>
-
-          <div className="grid gap-2">
-            <Label className="tracking-wide">EMAIL</Label>
-            <Input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder={isCustomer ? "you@example.com" : "name@pharmacy.com"}
-              className="h-12 rounded-2xl text-base"
-            />
-          </div>
-
-          {!isCustomer && (
+          {mode === "signup" ? (
             <>
               <div className="grid gap-2">
-                <Label className="tracking-wide">CATEGORY</Label>
-                <select className="h-12 rounded-2xl border px-3 text-base">
-                  <option>Retail Pharmacy</option>
-                  <option>Hospital Pharmacy</option>
-                  <option>Wholesale</option>
-                </select>
-              </div>
-              <div className="grid gap-2">
-                <Label className="tracking-wide">PHONE NUMBER</Label>
+                <Label className="tracking-wide">{isCustomer ? "DISPLAY NAME" : "CONTACT NAME"}</Label>
                 <Input
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+234 801 234 5678"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder={isCustomer ? "Jane Doe" : "Full name"}
                   className="h-12 rounded-2xl text-base"
                 />
               </div>
-              <div className="grid gap-2">
-                <Label className="tracking-wide">ADDRESS</Label>
-                <Input
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="Kuje, Abuja"
-                  className="h-12 rounded-2xl text-base"
-                />
-              </div>
-            </>
-          )}
 
-          {isCustomer && (
-            <>
               <div className="grid gap-2">
-                <Label className="tracking-wide">PHONE NUMBER</Label>
+                <Label className="tracking-wide">EMAIL</Label>
                 <Input
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+234 801 234 5678"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder={isCustomer ? "you@example.com" : "name@pharmacy.com"}
                   className="h-12 rounded-2xl text-base"
                 />
               </div>
+
+              {isCustomer ? (
+                <div className="grid gap-2">
+                  <Label className="tracking-wide">PHONE NUMBER</Label>
+                  <Input
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="+234 801 234 5678"
+                    className="h-12 rounded-2xl text-base"
+                  />
+                </div>
+              ) : (
+                <>
+                  <div className="grid gap-2">
+                    <Label className="tracking-wide">PHARMACY NAME</Label>
+                    <Input
+                      value={pharmacyName}
+                      onChange={(e) => setPharmacyName(e.target.value)}
+                      placeholder="HopeWell Pharmacy"
+                      className="h-12 rounded-2xl text-base"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label className="tracking-wide">PHONE NUMBER</Label>
+                    <Input
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="+234 801 234 5678"
+                      className="h-12 rounded-2xl text-base"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label className="tracking-wide">ADDRESS</Label>
+                    <Input
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      placeholder="Street, Area, City"
+                      className="h-12 rounded-2xl text-base"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label className="tracking-wide">SET LOCATION ON MAP</Label>
+                    <MapPicker
+                      value={pin || { lat: 9.0765, lng: 7.3986 }}
+                      onChange={setPin}
+                      height={220}
+                    />
+                    <div className="text-xs text-slate-500">
+                      {pin ? `Pinned: ${pin.lat.toFixed(5)}, ${pin.lng.toFixed(5)}` : "Tap map to drop a pin"}
+                    </div>
+                  </div>
+                </>
+              )}
+
               <div className="grid gap-2">
-                <Label className="tracking-wide">CHOOSE PASSWORD</Label>
+                <Label className="tracking-wide">PASSWORD</Label>
                 <Input
                   type="password"
                   value={password}
@@ -123,53 +188,38 @@ export default function AuthFlow({ role = "customer", onDone, onBack }) {
                   className="h-12 rounded-2xl text-base"
                 />
               </div>
+
+              <Button className="w-full h-12 rounded-2xl text-lg" onClick={submit}>
+                {isCustomer ? "CREATE ACCOUNT" : "REGISTER PHARMACY"}
+              </Button>
+            </>
+          ) : (
+            <>
+              <div className="grid gap-2">
+                <Label className="tracking-wide">EMAIL</Label>
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className="h-12 rounded-2xl text-base"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label className="tracking-wide">PASSWORD</Label>
+                <Input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="h-12 rounded-2xl text-base"
+                />
+              </div>
+              <Button className="w-full h-12 rounded-2xl text-lg" onClick={submit}>
+                SIGN IN
+              </Button>
             </>
           )}
-
-          {!isCustomer && (
-            <div className="grid gap-2">
-              <Label className="tracking-wide">PHARMACY NAME</Label>
-              <Input
-                value={pharmacy}
-                onChange={(e) => setPharmacy(e.target.value)}
-                placeholder="HopeWell Pharmacy"
-                className="h-12 rounded-2xl text-base"
-              />
-            </div>
-          )}
-
-          <Button className="w-full h-12 rounded-2xl text-lg" onClick={submit}>
-            {isCustomer ? "SIGN UP" : "REGISTER"}
-          </Button>
-
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="bg-white px-3">
-                {isCustomer ? "SIGN UP USING" : "BY SIGNING UP, YOU AGREE TO OUR TERMS"}
-              </span>
-            </div>
-          </div>
-
-          {isCustomer && (
-            <div className="grid gap-3">
-              <Button variant="outline" className="h-12 rounded-2xl">GOOGLE</Button>
-              <Button variant="outline" className="h-12 rounded-2xl">APPLE</Button>
-            </div>
-          )}
-
-          <div className="text-center mt-6">
-            <div className="inline-flex items-center gap-3 w-full">
-              <span className="flex-1 border-t"></span>
-              <span className="text-sm">ALREADY HAVE AN ACCOUNT?</span>
-              <span className="flex-1 border-t"></span>
-            </div>
-            <div className="mt-3">
-              <Button variant="outline" className="w-full h-12 rounded-2xl">SIGN IN</Button>
-            </div>
-          </div>
         </div>
       </div>
     </div>

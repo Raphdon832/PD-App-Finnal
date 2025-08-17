@@ -275,6 +275,7 @@ export default function App() {
 
   const Screens = {
     landing: <Landing onSelectRole={(role) => go("auth", { role })} />,
+  
     auth: (
   <AuthFlow
     role={state.screenParams.role}
@@ -288,6 +289,7 @@ export default function App() {
     }
   />
 ),
+
 
     home: (
       <Home
