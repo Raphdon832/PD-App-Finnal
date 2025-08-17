@@ -273,23 +273,25 @@ export default function App() {
     return sum + (p ? p.price * ci.qty : 0);
   }, 0);
 
+  // ---- cart badge count
+  const cartCount = state.cart.reduce((sum, ci) => sum + ci.qty, 0);
+
   const Screens = {
     landing: <Landing onSelectRole={(role) => go("auth", { role })} />,
-  
-    auth: (
-  <AuthFlow
-    role={state.screenParams.role}
-    onBack={() => go("landing")}
-    onDone={(user) =>
-      setState((s) => ({
-        ...s,
-        me: user,
-        screen: user.role === "customer" ? "home" : "vendorDashboard",
-      }))
-    }
-  />
-),
 
+    auth: (
+      <AuthFlow
+        role={state.screenParams.role}
+        onBack={() => go("landing")}
+        onDone={(user) =>
+          setState((s) => ({
+            ...s,
+            me: user,
+            screen: user.role === "customer" ? "home" : "vendorDashboard",
+          }))
+        }
+      />
+    ),
 
     home: (
       <Home
@@ -298,8 +300,8 @@ export default function App() {
         products={state.products}
         userLoc={state.userLoc}
         addToCart={(id) => {
+          // no toast; badge will update
           addToCart(id);
-          toast("Added to cart");
         }}
       />
     ),
@@ -310,8 +312,8 @@ export default function App() {
         products={state.products}
         userLoc={state.userLoc}
         addToCart={(id) => {
+          // no toast; badge will update
           addToCart(id);
-          toast("Added to cart");
         }}
         initialCategory={state.screenParams.category}
       />
@@ -322,8 +324,8 @@ export default function App() {
         vendor={vendorById(productById(state.screenParams.id)?.vendorId)}
         onVendor={(id) => go("vendorProfile", { id })}
         onAdd={() => {
+          // no toast; badge will update
           addToCart(state.screenParams.id);
-          toast("Added to cart");
         }}
       />
     ),
@@ -403,8 +405,8 @@ export default function App() {
         products={state.products.filter((p) => p.vendorId === state.screenParams.id)}
         onMessage={(id, text) => sendMessage(id, "me", text)}
         onAddToCart={(id) => {
+          // no toast; badge will update
           addToCart(id);
-          toast("Added to cart");
         }}
       />
     ),
@@ -413,20 +415,21 @@ export default function App() {
 
   const showBottomNav = state.screen !== "landing" && state.screen !== "auth";
 
-  const bottomTabs = me?.role === "pharmacist"
-    ? [
-        { key: "vendorDashboard", label: "Dashboard", icon: <Store className="h-5 w-5" />, onClick: () => go("vendorDashboard") },
-        { key: "orders", label: "Orders", icon: <Package className="h-5 w-5" />, onClick: () => go("orders") },
-        { key: "messages", label: "Messages", icon: <MessageSquare className="h-5 w-5" />, onClick: () => go("messages") },
-        { key: "profile", label: "Profile", icon: <User2 className="h-5 w-5" />, onClick: () => go("profile") },
-      ]
-    : [
-        { key: "home", label: "Home", icon: <HomeIcon className="h-5 w-5" />, onClick: () => go("home") },
-        { key: "orders", label: "Orders", icon: <Package className="h-5 w-5" />, onClick: () => go("orders") },
-        { key: "messages", label: "Messages", icon: <MessageSquare className="h-5 w-5" />, onClick: () => go("messages") },
-        { key: "cart", label: "Cart", icon: <ShoppingCart className="h-5 w-5" />, onClick: () => go("cart") },
-        { key: "profile", label: "Profile", icon: <User2 className="h-5 w-5" />, onClick: () => go("profile") },
-      ];
+  const bottomTabs =
+    me?.role === "pharmacist"
+      ? [
+          { key: "vendorDashboard", label: "Dashboard", icon: <Store className="h-5 w-5" />, onClick: () => go("vendorDashboard") },
+          { key: "orders", label: "Orders", icon: <Package className="h-5 w-5" />, onClick: () => go("orders") },
+          { key: "messages", label: "Messages", icon: <MessageSquare className="h-5 w-5" />, onClick: () => go("messages") },
+          { key: "profile", label: "Profile", icon: <User2 className="h-5 w-5" />, onClick: () => go("profile") },
+        ]
+      : [
+          { key: "home", label: "Home", icon: <HomeIcon className="h-5 w-5" />, onClick: () => go("home") },
+          { key: "orders", label: "Orders", icon: <Package className="h-5 w-5" />, onClick: () => go("orders") },
+          { key: "messages", label: "Messages", icon: <MessageSquare className="h-5 w-5" />, onClick: () => go("messages") },
+          { key: "cart", label: "Cart", icon: <ShoppingCart className="h-5 w-5" />, onClick: () => go("cart") },
+          { key: "profile", label: "Profile", icon: <User2 className="h-5 w-5" />, onClick: () => go("profile") },
+        ];
 
   const locText =
     state.userPlace?.label ||
@@ -472,17 +475,30 @@ export default function App() {
           className="fixed bottom-3 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-1.5rem)] max-w-md bg-white/95 border border-slate-200 shadow-xl backdrop-blur rounded-3xl"
         >
           <div className="grid" style={{ gridTemplateColumns: `repeat(${bottomTabs.length}, minmax(0, 1fr))` }}>
-            {bottomTabs.map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={tab.onClick}
-                className={`py-3 flex flex-col items-center justify-center text-xs ${state.screen === tab.key ? "text-sky-600" : "text-slate-700"}`}
-              >
-                {tab.icon}
-                <span className="mt-1">{tab.label}</span>
-              </button>
-            ))}
+            {bottomTabs.map((tab) => {
+              const isActive = state.screen === tab.key;
+              const showBadge = tab.key === "cart" && cartCount > 0;
+              const badgeText = cartCount > 99 ? "99+" : String(cartCount);
+
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={tab.onClick}
+                  className={`py-3 flex flex-col items-center justify-center text-xs ${isActive ? "text-sky-600" : "text-slate-700"}`}
+                >
+                  <div className="relative">
+                    {tab.icon}
+                    {showBadge && (
+                      <span className="absolute -top-1 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] leading-[18px] text-center font-semibold shadow-sm">
+                        {badgeText}
+                      </span>
+                    )}
+                  </div>
+                  <span className="mt-1">{tab.label}</span>
+                </button>
+              );
+            })}
           </div>
         </nav>
       )}
