@@ -117,7 +117,9 @@ export default function App() {
       products: seedProducts,
       cart: [],
       orders: [],
-      threads: {},
+      threads: {}, // { [vendorId]: [{id, from: 'me' | 'them', text, at: ISOString}] }
+      /** NEW: track when user last viewed Messages to compute unread badge */
+      lastMessagesSeenAt: loadFromLS("PD_LAST_MSG_SEEN_AT", 0),
       toasts: [],
       userLoc: null,
       userPlace: null,
@@ -151,8 +153,22 @@ export default function App() {
   }, [state.userLoc]);
 
   const me = state.me;
-  const go = (screen, screenParams = {}) =>
+
+  /** helper to persist lastMessagesSeenAt */
+  const _setLastMessagesSeenNow = React.useCallback(() => {
+    const now = Date.now();
+    saveToLS("PD_LAST_MSG_SEEN_AT", now);
+    setState((s) => ({ ...s, lastMessagesSeenAt: now }));
+  }, []);
+
+  const go = (screen, screenParams = {}) => {
+    // When navigating to Messages, clear unread by marking "seen now"
+    if (screen === "messages") {
+      _setLastMessagesSeenNow();
+    }
     setState((s) => ({ ...s, screen, screenParams }));
+  };
+
   const toast = (msg, type = "info") => {
     const id = uid();
     setState((s) => ({ ...s, toasts: [...s.toasts, { id, msg, type }] }));
@@ -275,6 +291,24 @@ export default function App() {
 
   // ---- cart badge count
   const cartCount = state.cart.reduce((sum, ci) => sum + ci.qty, 0);
+
+  /** ---- messages unread badge count (NEW)
+   * Counts messages not from "me" that arrived after lastMessagesSeenAt.
+   */
+  const unreadMessages = React.useMemo(() => {
+    const since = Number(state.lastMessagesSeenAt) || 0;
+    let total = 0;
+    for (const vendorId of Object.keys(state.threads || {})) {
+      const msgs = state.threads[vendorId] || [];
+      for (const m of msgs) {
+        if (m?.from !== "me") {
+          const t = new Date(m.at || 0).getTime();
+          if (t > since) total += 1;
+        }
+      }
+    }
+    return total;
+  }, [state.threads, state.lastMessagesSeenAt]);
 
   const Screens = {
     landing: <Landing onSelectRole={(role) => go("auth", { role })} />,
@@ -477,8 +511,14 @@ export default function App() {
           <div className="grid" style={{ gridTemplateColumns: `repeat(${bottomTabs.length}, minmax(0, 1fr))` }}>
             {bottomTabs.map((tab) => {
               const isActive = state.screen === tab.key;
-              const showBadge = tab.key === "cart" && cartCount > 0;
-              const badgeText = cartCount > 99 ? "99+" : String(cartCount);
+
+              // Existing cart badge
+              const showCartBadge = tab.key === "cart" && cartCount > 0;
+              const cartBadgeText = cartCount > 99 ? "99+" : String(cartCount);
+
+              // NEW: messages badge
+              const showMsgBadge = tab.key === "messages" && unreadMessages > 0;
+              const msgBadgeText = unreadMessages > 99 ? "99+" : String(unreadMessages);
 
               return (
                 <button
@@ -489,9 +529,16 @@ export default function App() {
                 >
                   <div className="relative">
                     {tab.icon}
-                    {showBadge && (
+
+                    {showCartBadge && (
                       <span className="absolute -top-1 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] leading-[18px] text-center font-semibold shadow-sm">
-                        {badgeText}
+                        {cartBadgeText}
+                      </span>
+                    )}
+
+                    {showMsgBadge && (
+                      <span className="absolute -top-1 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] leading-[18px] text-center font-semibold shadow-sm">
+                        {msgBadgeText}
                       </span>
                     )}
                   </div>
