@@ -34,7 +34,7 @@ nav[role="navigation"], nav.fixed { padding-bottom: var(--safe-bottom); }
     repeating-linear-gradient(
       0deg,
       rgba(0,0,0,0.035) 0 2px,
-      transparent 2px 80px
+      transparent 2px 90px
     );
   background-size: 100% 10px;
 }
