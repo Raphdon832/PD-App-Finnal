@@ -39,10 +39,18 @@ nav[role="navigation"], nav.fixed { padding-bottom: var(--safe-bottom); }
   background-size: 100% 10px;
 }
 
-/* Hide horizontal/vertical scrollbars but keep scrolling */
-.no-scrollbar::-webkit-scrollbar { display: none; }   /* Chrome/Safari */
-.no-scrollbar { 
-  -ms-overflow-style: none;  /* IE/Edge legacy */
-  scrollbar-width: none;     /* Firefox */
+/* ===== GLOBAL: hide ALL scrollbars (both axes) but keep scrolling ===== */
+/* Firefox + old Edge/IE */
+* {
+  scrollbar-width: none;        /* Firefox: hides scrollbars */
+  -ms-overflow-style: none;     /* IE/old Edge */
 }
-
+/* Chrome/Safari/Edge (Blink/WebKit) */
+*::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: transparent;
+}
