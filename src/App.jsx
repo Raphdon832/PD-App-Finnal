@@ -822,7 +822,7 @@ export default function App() {
       {showBottomNav && (
         <nav
           role="navigation"
-          className="fixed bottom-3 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-1.5rem)] max-w-md bg-white/95 border border-slate-200 shadow-xl backdrop-blur rounded-3xl"
+          className="fixed bottom-3 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-1.5rem)] max-w-md bg-white/50 border border-slate-200 shadow-xl backdrop-blur-[27.9px] rounded-2xl"
         >
           <div
             className="grid"
