@@ -95,7 +95,7 @@ export default function Home({ go, vendors, products, addToCart, userLoc }) {
             const etaLabel = eta != null && v?.name ? `${eta} mins to ${v.name}` : null;
 
             return (
-              <div key={p.id} className="border-[0px] border-grey-20/70 rounded-[10px] overflow-hidden">
+              <div key={p.id} className="border-[0px] border-grey-20/70 rounded-[10px] overflow-hidden bg-grey-500">
                 <div
                   className="aspect-square bg-slate-100 flex items-center justify-center cursor-pointer"
                   onClick={() => go("product", { id: p.id })}
