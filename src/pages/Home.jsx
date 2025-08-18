@@ -63,7 +63,8 @@ export default function Home({ go, vendors, products, addToCart, userLoc }) {
         </Button>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto py-1">
+      {/* Change #2: add no-scrollbar */}
+      <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
         {CATEGORIES.map((cat) => (
           <Badge
             key={cat}
