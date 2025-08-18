@@ -15,17 +15,32 @@ import CartSvgRaw from "@/assets/icons/cart.svg?raw";
 import ProfileSvgRaw from "@/assets/icons/profile.svg?raw";
 import DashboardSvgRaw from "@/assets/icons/dashboard.svg?raw";
 
+/* ==================== Fix A: sanitize Figma colors -> currentColor ==================== */
+const sanitizeSvgColors = (raw) => {
+  let s = raw;
+
+  // Replace hardcoded fills/strokes with currentColor, but keep fill="none" intact
+  s = s
+    .replace(/fill="(?!none)[^"]*"/gi, 'fill="currentColor"')
+    .replace(/stroke="[^"]*"/gi, 'stroke="currentColor"')
+    .replace(/style="[^"]*"/gi, (m) =>
+      m
+        .replace(/fill:\s*(#[0-9a-f]{3,8}|rgb\([^)]+\))/gi, "fill:currentColor")
+        .replace(/stroke:\s*(#[0-9a-f]{3,8}|rgb\([^)]+\))/gi, "stroke:currentColor")
+    );
+
+  // Ensure viewBox exists so the icon scales; adjust if your artboard is different
+  if (!/viewBox=/.test(s)) s = s.replace("<svg", '<svg viewBox="0 0 24 24"');
+
+  // Let the wrapper control size
+  s = s.replace("<svg", '<svg style="width:100%;height:100%;display:block"');
+
+  return s;
+};
+
 /* Turn a raw <svg> string into a React component that sizes via className */
 const makeSvgIcon = (raw) => {
-  // best-effort: ensure the inner <svg> fills the wrapper box
-  let fixed = raw;
-  try {
-    // If width/height are hardcoded, add inline style to override
-    fixed = raw.replace(
-      "<svg",
-      '<svg style="width:100%;height:100%;display:block"'
-    );
-  } catch {}
+  const fixed = sanitizeSvgColors(raw);
   return function SvgIcon({ className = "h-5 w-5", ...rest }) {
     return (
       <span
@@ -838,7 +853,7 @@ export default function App() {
                   }`}
                 >
                   <div className="relative">
-                    {/* Custom SVG (from raw string) */}
+                    {/* Custom SVG (sanitized to use currentColor) */}
                     <IconCmp className="h-5 w-5" />
 
                     {showCartBadge && (
