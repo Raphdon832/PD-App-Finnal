@@ -95,7 +95,7 @@ export default function Home({ go, vendors, products, addToCart, userLoc }) {
             const etaLabel = eta != null && v?.name ? `${eta} mins to ${v.name}` : null;
 
             return (
-              <div key={p.id} className="border rounded-xl overflow-hidden">
+              <div key={p.id} className="border-[0px] border-grey-20/70 rounded-[10px] overflow-hidden">
                 <div
                   className="aspect-square bg-slate-100 flex items-center justify-center cursor-pointer"
                   onClick={() => go("product", { id: p.id })}
@@ -114,7 +114,7 @@ export default function Home({ go, vendors, products, addToCart, userLoc }) {
                     <div className="mt-0.5 text-[11px] text-slate-500">{etaLabel}</div>
                   )}
                   <div className="mt-2 flex items-center gap-2">
-                    <Button size="sm" className="flex-1" onClick={() => go("product", { id: p.id })}>
+                    <Button size="sm" className="flex-1 rounded-sm" onClick={() => go("product", { id: p.id })}>
                       View
                     </Button>
                     <Button size="icon" variant="outline" onClick={() => addToCart(p.id)}>
