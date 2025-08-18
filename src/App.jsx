@@ -93,7 +93,7 @@ async function reverseGeocode(lat, lng) {
       label: label || `${lat.toFixed(2)}°, ${lng.toFixed(2)}°`,
       short: locality || label || "",
       region: region || "",
-      country: country || "",
+      country: "",
     };
     localStorage.setItem(key, JSON.stringify(result));
     return result;
@@ -137,8 +137,8 @@ export default function App() {
       cart: [],
       orders: [],
 
-      // unified messaging: per (vendorId, customerId)
-      // { id, vendorId, customerId, lastAt, messages: [{id, from:'customer'|'vendor', text, at}] }
+      // unified messaging per (vendorId, customerId)
+      // { id, vendorId, customerId, customerName?, lastAt, messages: [{id, from:'customer'|'vendor', text, at}] }
       conversations: [],
 
       lastMessagesSeenAt: 0,
@@ -148,12 +148,9 @@ export default function App() {
     })
   );
 
-  /* ---- migration: ensure conversations exists even with old PD_STATE ---- */
+  /* migration: ensure conversations array exists */
   React.useEffect(() => {
-    setState((s) => {
-      if (Array.isArray(s.conversations)) return s;
-      return { ...s, conversations: [] };
-    });
+    setState((s) => (Array.isArray(s.conversations) ? s : { ...s, conversations: [] }));
   }, []);
 
   /* persist */
@@ -187,12 +184,9 @@ export default function App() {
   }, [state.userLoc]);
 
   const me = state.me;
-  const myVendor = React.useMemo(
-    () => getVendorForPharm(me, state.vendors),
-    [me, state.vendors]
-  );
+  const myVendor = React.useMemo(() => getVendorForPharm(me, state.vendors), [me, state.vendors]);
 
-  /* ensure customers have a stable uid */
+  /* ensure customers have stable uid */
   React.useEffect(() => {
     if (!me) return;
     if (me.role === "customer" && !me.uid) {
@@ -247,8 +241,8 @@ export default function App() {
       if (p) return vendorById(p.vendorId);
     }
     if (!state.userLoc) return null;
-    let best = null;
-    let bestD = Infinity;
+    let best = null,
+      bestD = Infinity;
     for (const v of state.vendors) {
       if (typeof v.lat !== "number" || typeof v.lng !== "number") continue;
       const d = haversineKm(state.userLoc, { lat: v.lat, lng: v.lng });
@@ -263,17 +257,12 @@ export default function App() {
   const distanceKm = React.useMemo(() => {
     if (!state.userLoc || !targetVendor) return null;
     if (targetVendor.lat == null || targetVendor.lng == null) return null;
-    return haversineKm(state.userLoc, {
-      lat: targetVendor.lat,
-      lng: targetVendor.lng,
-    });
+    return haversineKm(state.userLoc, { lat: targetVendor.lat, lng: targetVendor.lng });
   }, [state.userLoc, targetVendor]);
 
   const dynamicEta = etaMinutes(distanceKm);
   const etaLabel =
-    dynamicEta != null
-      ? `${dynamicEta} mins${targetVendor?.name ? ` to ${targetVendor.name}` : ""}`
-      : "—";
+    dynamicEta != null ? `${dynamicEta} mins${targetVendor?.name ? ` to ${targetVendor.name}` : ""}` : "—";
 
   const addToCart = (productId) =>
     setState((s) => {
@@ -283,23 +272,16 @@ export default function App() {
       let cart;
       if (existing)
         cart = s.cart.map((ci) =>
-          ci.productId === productId
-            ? { ...ci, qty: Math.min(ci.qty + 1, p.stock) }
-            : ci
+          ci.productId === productId ? { ...ci, qty: Math.min(ci.qty + 1, p.stock) } : ci
         );
-      else cart = [
-        ...s.cart,
-        { id: uid(), productId, vendorId: p.vendorId, qty: 1 },
-      ];
+      else cart = [...s.cart, { id: uid(), productId, vendorId: p.vendorId, qty: 1 }];
       return { ...s, cart };
     });
 
   const setQty = (lineId, qty) =>
     setState((s) => ({
       ...s,
-      cart: s.cart.map((ci) =>
-        ci.id === lineId ? { ...ci, qty: Math.max(1, qty) } : ci
-      ),
+      cart: s.cart.map((ci) => (ci.id === lineId ? { ...ci, qty: Math.max(1, qty) } : ci)),
     }));
   const removeLine = (lineId) =>
     setState((s) => ({ ...s, cart: s.cart.filter((ci) => ci.id !== lineId) }));
@@ -311,12 +293,7 @@ export default function App() {
         const p = s.products.find((p) => p.id === ci.productId);
         return sum + (p ? p.price * ci.qty : 0);
       }, 0);
-      const order = {
-        id: uid(),
-        items: s.cart,
-        total,
-        createdAt: new Date().toISOString(),
-      };
+      const order = { id: uid(), items: s.cart, total, createdAt: new Date().toISOString() };
       toast("Order placed. Pharmacist will confirm shortly.", "success");
       return { ...s, orders: [order, ...s.orders], cart: [], screen: "orders" };
     });
@@ -324,43 +301,37 @@ export default function App() {
   const upsertVendor = (v) =>
     setState((s) => {
       const exists = s.vendors.some((x) => x.id === v.id);
-      const vendors = exists
-        ? s.vendors.map((x) => (x.id === v.id ? v : x))
-        : [...s.vendors, v];
+      const vendors = exists ? s.vendors.map((x) => (x.id === v.id ? v : x)) : [...s.vendors, v];
       return { ...s, vendors };
     });
 
   const addProduct = (p) =>
-    setState((s) => ({
-      ...s,
-      products: [{ ...p, id: uid() }, ...s.products],
-    }));
+    setState((s) => ({ ...s, products: [{ ...p, id: uid() }, ...s.products] }));
   const removeProduct = (pid) =>
-    setState((s) => ({
-      ...s,
-      products: s.products.filter((p) => p.id !== pid),
-    }));
+    setState((s) => ({ ...s, products: s.products.filter((p) => p.id !== pid) }));
 
-  /* -------------------------- Messaging (unique + safe) -------------------------- */
+  /* -------------------------- Messaging (unique + names) -------------------------- */
   const getOrCreateConversation = React.useCallback(
-    (vendorId, customerId) => {
+    (vendorId, customerId, customerName) => {
       if (!vendorId || !customerId) return null;
       const list = asArray(state.conversations);
-      let conv = list.find(
-        (c) => c.vendorId === vendorId && c.customerId === customerId
-      );
+      let conv = list.find((c) => c.vendorId === vendorId && c.customerId === customerId);
       if (!conv) {
         conv = {
           id: uid(),
           vendorId,
           customerId,
+          customerName: customerName || undefined, // store if we know it
           lastAt: Date.now(),
           messages: [],
         };
-        setState((s) => ({
-          ...s,
-          conversations: [conv, ...asArray(s.conversations)],
-        }));
+        setState((s) => ({ ...s, conversations: [conv, ...asArray(s.conversations)] }));
+      } else if (customerName && !conv.customerName) {
+        // backfill name later if it was missing
+        const next = list.map((c) =>
+          c === conv ? { ...c, customerName } : c
+        );
+        setState((s) => ({ ...s, conversations: next }));
       }
       return conv;
     },
@@ -368,13 +339,11 @@ export default function App() {
   );
 
   const sendConversationMessage = React.useCallback(
-    (vendorId, customerId, text, fromRole) => {
+    (vendorId, customerId, text, fromRole, customerNameOpt) => {
       if (!vendorId || !customerId || !text?.trim()) return;
       setState((s) => {
         const list = asArray(s.conversations);
-        const idx = list.findIndex(
-          (c) => c.vendorId === vendorId && c.customerId === customerId
-        );
+        const idx = list.findIndex((c) => c.vendorId === vendorId && c.customerId === customerId);
         const nowIso = new Date().toISOString();
         const newMsg = { id: uid(), from: fromRole, text, at: nowIso };
 
@@ -383,6 +352,7 @@ export default function App() {
             id: uid(),
             vendorId,
             customerId,
+            customerName: customerNameOpt || undefined,
             lastAt: Date.now(),
             messages: [newMsg],
           };
@@ -391,6 +361,8 @@ export default function App() {
           const conv = list[idx];
           const updated = {
             ...conv,
+            // if we learn the customer's name later, keep it
+            customerName: conv.customerName || customerNameOpt || undefined,
             lastAt: Date.now(),
             messages: [...asArray(conv.messages), newMsg],
           };
@@ -403,14 +375,15 @@ export default function App() {
     []
   );
 
-  // customer starts/continues a chat from product/vendor
+  // customer starts/continues chat from product/vendor
   const startChatWithVendor = (vendorId, initialText) => {
     const customerId = getCustomerId(me);
     if (!customerId) return;
+    const custName = me?.name || me?.fullName || me?.displayName || me?.email || `Customer U_${String(customerId).slice(0, 4).toUpperCase()}`;
     if (initialText) {
-      sendConversationMessage(vendorId, customerId, initialText, "customer");
+      sendConversationMessage(vendorId, customerId, initialText, "customer", custName);
     } else {
-      getOrCreateConversation(vendorId, customerId);
+      getOrCreateConversation(vendorId, customerId, custName);
     }
     go("messages");
   };
@@ -420,15 +393,16 @@ export default function App() {
     if (!me) return;
     if (me.role === "customer") {
       const customerId = getCustomerId(me);
-      sendConversationMessage(partnerId, customerId, text, "customer");
+      const custName = me?.name || me?.fullName || me?.displayName || me?.email || `Customer U_${String(customerId).slice(0, 4).toUpperCase()}`;
+      sendConversationMessage(partnerId, customerId, text, "customer", custName);
     } else if (me.role === "pharmacist" && myVendor?.id) {
+      // pharmacist does not know customer's name here—it's already stored from customer's messages
       sendConversationMessage(myVendor.id, partnerId, text, "vendor");
     }
   };
 
   /* --------------------- counts + derived inbox threads --------------------- */
   const cartCount = state.cart.reduce((sum, ci) => sum + ci.qty, 0);
-
   const conversationsSafe = asArray(state.conversations);
 
   const unreadMessages = React.useMemo(() => {
@@ -452,6 +426,7 @@ export default function App() {
     return total;
   }, [conversationsSafe, state.lastMessagesSeenAt, me, state.vendors]);
 
+  // Build legacy-compatible threads AND a pharmacist-only name map via augmented vendors
   const inboxThreads = React.useMemo(() => {
     const map = {};
     for (const c of conversationsSafe) {
@@ -460,12 +435,7 @@ export default function App() {
         const key = c.vendorId; // partner is vendor
         const arr = map[key] || [];
         for (const m of asArray(c.messages)) {
-          arr.push({
-            id: m.id,
-            from: m.from === "customer" ? "me" : "them",
-            text: m.text,
-            at: m.at,
-          });
+          arr.push({ id: m.id, from: m.from === "customer" ? "me" : "them", text: m.text, at: m.at });
         }
         map[key] = arr;
       } else if (me?.role === "pharmacist" && myVendor?.id) {
@@ -473,18 +443,30 @@ export default function App() {
         const key = c.customerId; // partner is customer
         const arr = map[key] || [];
         for (const m of asArray(c.messages)) {
-          arr.push({
-            id: m.id,
-            from: m.from === "vendor" ? "me" : "them",
-            text: m.text,
-            at: m.at,
-          });
+          arr.push({ id: m.id, from: m.from === "vendor" ? "me" : "them", text: m.text, at: m.at });
         }
         map[key] = arr;
       }
     }
     return map;
   }, [conversationsSafe, me, myVendor?.id]);
+
+  // For pharmacist view: augment vendors with "virtual vendors" = customers (id=name: customerId, name=customerName)
+  const vendorsForMessages = React.useMemo(() => {
+    if (me?.role !== "pharmacist" || !myVendor?.id) return state.vendors;
+
+    const labelFor = (c) =>
+      c.customerName ||
+      `Customer U_${String(c.customerId).slice(0, 4).toUpperCase()}`;
+
+    const map = {};
+    for (const c of conversationsSafe) {
+      if (c.vendorId !== myVendor.id) continue;
+      map[c.customerId] = { id: c.customerId, name: labelFor(c) };
+    }
+    const virtuals = Object.values(map);
+    return [...state.vendors, ...virtuals];
+  }, [me, myVendor?.id, conversationsSafe, state.vendors]);
 
   /* -------------------------------- Screens -------------------------------- */
   const Screens = {
@@ -495,10 +477,7 @@ export default function App() {
         role={state.screenParams.role}
         onBack={() => go("landing")}
         onDone={(user) => {
-          const withUid =
-            user.role === "customer"
-              ? { ...user, uid: user.uid || user.id || uid() }
-              : user;
+          const withUid = user.role === "customer" ? { ...user, uid: user.uid || user.id || uid() } : user;
           setState((s) => ({
             ...s,
             me: withUid,
@@ -566,9 +545,11 @@ export default function App() {
         <div className="p-6 text-center text-sm text-slate-500">No Chats</div>
       ) : (
         <Messages
-          vendors={state.vendors}
+          // KEY PART: pharmacist sees customers' display names via augmented vendors list
+          vendors={vendorsForMessages}
           threads={inboxThreads || {}}
-          onOpenVendor={(id) => go("vendorProfile", { id })}
+          // For pharmacist view, don’t show "View store" on customer profiles
+          onOpenVendor={me?.role === "pharmacist" ? undefined : (id) => go("vendorProfile", { id })}
           onSend={(partnerId, text) => onSendFromMessages(partnerId, text)}
         />
       ),
@@ -580,9 +561,7 @@ export default function App() {
         myVendor={
           state.me
             ? state.vendors.find((v) =>
-                state.me.role === "pharmacist"
-                  ? v.name === state.me.pharmacyName
-                  : false
+                state.me.role === "pharmacist" ? v.name === state.me.pharmacyName : false
               )
             : null
         }
@@ -598,20 +577,10 @@ export default function App() {
             for (const it of items) {
               let vendorId = it.vendorId;
               if (!vendorId) {
-                const vName =
-                  it.vendorName || state.me?.pharmacyName || "My Pharmacy";
+                const vName = it.vendorName || state.me?.pharmacyName || "My Pharmacy";
                 let v = vendors.find((v) => v.name === vName);
                 if (!v) {
-                  v = {
-                    id: uid(),
-                    name: vName,
-                    bio: "",
-                    address: "",
-                    contact: "",
-                    etaMins: 30,
-                    lat: null,
-                    lng: null,
-                  };
+                  v = { id: uid(), name: vName, bio: "", address: "", contact: "", etaMins: 30, lat: null, lng: null };
                   vendors.push(v);
                   createdVendors++;
                 }
@@ -631,31 +600,19 @@ export default function App() {
             }
             return { ...s, vendors, products };
           });
-          toast(
-            `Imported ${added} item(s)` +
-              (createdVendors ? `, ${createdVendors} vendor(s)` : "")
-          );
+          toast(`Imported ${added} item(s)` + (createdVendors ? `, ${createdVendors} vendor(s)` : ""));
         }}
       />
     ),
     vendorProfile: (
       <VendorProfile
         vendor={vendorById(state.screenParams.id)}
-        products={state.products.filter(
-          (p) => p.vendorId === state.screenParams.id
-        )}
+        products={state.products.filter((p) => p.vendorId === state.screenParams.id)}
         onMessage={(vendorId, text) => startChatWithVendor(vendorId, text)}
         onAddToCart={(id) => addToCart(id)}
       />
     ),
-    profile: (
-      <Profile
-        me={me}
-        onLogout={() =>
-          setState((s) => ({ ...s, me: null, screen: "landing" }))
-        }
-      />
-    ),
+    profile: <Profile me={me} onLogout={() => setState((s) => ({ ...s, me: null, screen: "landing" }))} />,
   };
 
   const showBottomNav = state.screen !== "landing" && state.screen !== "auth";
@@ -663,80 +620,29 @@ export default function App() {
   const bottomTabs =
     me?.role === "pharmacist"
       ? [
-          {
-            key: "vendorDashboard",
-            label: "Dashboard",
-            icon: <Store className="h-5 w-5" />,
-            onClick: () => go("vendorDashboard"),
-          },
-          {
-            key: "orders",
-            label: "Orders",
-            icon: <Package className="h-5 w-5" />,
-            onClick: () => go("orders"),
-          },
-          {
-            key: "messages",
-            label: "Messages",
-            icon: <MessageSquare className="h-5 w-5" />,
-            onClick: () => go("messages"),
-          },
-          {
-            key: "profile",
-            label: "Profile",
-            icon: <User2 className="h-5 w-5" />,
-            onClick: () => go("profile"),
-          },
+          { key: "vendorDashboard", label: "Dashboard", icon: <Store className="h-5 w-5" />, onClick: () => go("vendorDashboard") },
+          { key: "orders", label: "Orders", icon: <Package className="h-5 w-5" />, onClick: () => go("orders") },
+          { key: "messages", label: "Messages", icon: <MessageSquare className="h-5 w-5" />, onClick: () => go("messages") },
+          { key: "profile", label: "Profile", icon: <User2 className="h-5 w-5" />, onClick: () => go("profile") },
         ]
       : [
-          {
-            key: "home",
-            label: "Home",
-            icon: <HomeIcon className="h-5 w-5" />,
-            onClick: () => go("home"),
-          },
-          {
-            key: "orders",
-            label: "Orders",
-            icon: <Package className="h-5 w-5" />,
-            onClick: () => go("orders"),
-          },
-          {
-            key: "messages",
-            label: "Messages",
-            icon: <MessageSquare className="h-5 w-5" />,
-            onClick: () => go("messages"),
-          },
-          {
-            key: "cart",
-            label: "Cart",
-            icon: <ShoppingCart className="h-5 w-5" />,
-            onClick: () => go("cart"),
-          },
-          {
-            key: "profile",
-            label: "Profile",
-            icon: <User2 className="h-5 w-5" />,
-            onClick: () => go("profile"),
-          },
+          { key: "home", label: "Home", icon: <HomeIcon className="h-5 w-5" />, onClick: () => go("home") },
+          { key: "orders", label: "Orders", icon: <Package className="h-5 w-5" />, onClick: () => go("orders") },
+          { key: "messages", label: "Messages", icon: <MessageSquare className="h-5 w-5" />, onClick: () => go("messages") },
+          { key: "cart", label: "Cart", icon: <ShoppingCart className="h-5 w-5" />, onClick: () => go("cart") },
+          { key: "profile", label: "Profile", icon: <User2 className="h-5 w-5" />, onClick: () => go("profile") },
         ];
 
   const locText =
     state.userPlace?.label ||
-    (state.userLoc
-      ? `${state.userLoc.lat.toFixed(2)}°, ${state.userLoc.lng.toFixed(2)}°`
-      : "Location off");
+    (state.userLoc ? `${state.userLoc.lat.toFixed(2)}°, ${state.userLoc.lng.toFixed(2)}°` : "Location off");
 
   return (
     <div className="min-h-screen bg-white text-slate-900">
       <div className="sticky top-0 z-40 bg-white/70 backdrop-blur border-b border-slate-200">
         <div className="mx-auto max-w-5xl px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <img
-              src={pdLogo}
-              alt="PD — Healthcare at your doorstep"
-              className="h-7 w-auto select-none"
-            />
+            <img src={pdLogo} alt="PD — Healthcare at your doorstep" className="h-7 w-auto select-none" />
           </div>
           <div className="text-xs text-slate-700 flex items-center gap-3">
             <span className="inline-flex items-center gap-1">
@@ -745,9 +651,7 @@ export default function App() {
             </span>
             <span className="inline-flex items-center gap-1">
               <Timer className="h-4 w-4" />
-              {dynamicEta != null && targetVendor?.name
-                ? `${dynamicEta} mins to ${targetVendor.name}`
-                : etaLabel}
+              {dynamicEta != null && targetVendor?.name ? `${dynamicEta} mins to ${targetVendor.name}` : etaLabel}
             </span>
           </div>
         </div>
@@ -772,41 +676,28 @@ export default function App() {
           role="navigation"
           className="fixed bottom-3 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-1.5rem)] max-w-md bg-white/95 border border-slate-200 shadow-xl backdrop-blur rounded-3xl"
         >
-          <div
-            className="grid"
-            style={{
-              gridTemplateColumns: `repeat(${bottomTabs.length}, minmax(0, 1fr))`,
-            }}
-          >
+          <div className="grid" style={{ gridTemplateColumns: `repeat(${bottomTabs.length}, minmax(0, 1fr))` }}>
             {bottomTabs.map((tab) => {
               const isActive = state.screen === tab.key;
-
               const showCartBadge = tab.key === "cart" && cartCount > 0;
               const cartBadgeText = cartCount > 99 ? "99+" : String(cartCount);
-
-              const showMsgBadge =
-                tab.key === "messages" && unreadMessages > 0;
-              const msgBadgeText =
-                unreadMessages > 99 ? "99+" : String(unreadMessages);
+              const showMsgBadge = tab.key === "messages" && unreadMessages > 0;
+              const msgBadgeText = unreadMessages > 99 ? "99+" : String(unreadMessages);
 
               return (
                 <button
                   key={tab.key}
                   type="button"
                   onClick={tab.onClick}
-                  className={`py-3 flex flex-col items-center justify-center text-xs ${
-                    isActive ? "text-sky-600" : "text-slate-700"
-                  }`}
+                  className={`py-3 flex flex-col items-center justify-center text-xs ${isActive ? "text-sky-600" : "text-slate-700"}`}
                 >
                   <div className="relative">
                     {tab.icon}
-
                     {showCartBadge && (
                       <span className="absolute -top-1 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] leading-[18px] text-center font-semibold shadow-sm">
                         {cartBadgeText}
                       </span>
                     )}
-
                     {showMsgBadge && (
                       <span className="absolute -top-1 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] leading-[18px] text-center font-semibold shadow-sm">
                         {msgBadgeText}
