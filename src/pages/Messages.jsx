@@ -22,7 +22,6 @@ function ChatThreadScreen({ partnerId, partnerName, isVendorKnown, onOpenVendor,
   const endRef = useRef(null);
 
   useEffect(() => {
-    // auto-scroll to bottom when thread updates
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [thread.length]);
 
@@ -46,23 +45,14 @@ function ChatThreadScreen({ partnerId, partnerName, isVendorKnown, onOpenVendor,
           <div className="text-slate-400 text-center mt-8">No messages yet.</div>
         ) : (
           thread.map((msg) => (
-            <div
-              key={msg.id}
-              className={`mb-2 flex ${msg.from === "me" ? "justify-end" : "justify-start"}`}
-            >
-              <div
-                className={`px-3 py-2 rounded-lg text-sm max-w-[78%] break-words ${
-                  msg.from === "me"
-                    ? "bg-blue-100 text-blue-900"
-                    : "bg-white text-slate-800 border"
-                }`}
-              >
+            <div key={msg.id} className={`mb-2 flex ${msg.from === "me" ? "justify-end" : "justify-start"}`}>
+              <div className={`px-3 py-2 rounded-lg text-sm max-w-[78%] break-words ${
+                msg.from === "me" ? "bg-blue-100 text-blue-900" : "bg-white text-slate-800 border"
+              }`}>
                 <div>{msg.text}</div>
-                {msg.at && (
-                  <div className="mt-1 text-[10px] opacity-60">
-                    {new Date(msg.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                  </div>
-                )}
+                {msg.at && <div className="mt-1 text-[10px] opacity-60">
+                  {new Date(msg.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                </div>}
               </div>
             </div>
           ))
@@ -100,20 +90,13 @@ function ChatThreadScreen({ partnerId, partnerName, isVendorKnown, onOpenVendor,
 }
 
 export default function Messages({ vendors = [], threads = {}, onSend, onOpenVendor }) {
-  // Build quick lookups and a sorted conversation list
-  const vendorById = useMemo(() => {
-    const map = {};
-    for (const v of vendors) map[v.id] = v;
-    return map;
-  }, [vendors]);
+  const vendorById = useMemo(() => Object.fromEntries(vendors.map(v => [v.id, v])), [vendors]);
 
   const conversations = useMemo(() => {
-    // threads: { [partnerId]: [messages...] }
-    // Compute last message & sort by newest
     const items = Object.entries(threads).map(([partnerId, msgs]) => {
       const last = msgs[msgs.length - 1];
       const partnerVendor = vendorById[partnerId];
-      const partnerName = partnerVendor ? partnerVendor.name : `Customer ${partnerId.slice(0, 6)}`;
+      const partnerName = partnerVendor ? partnerVendor.name : `Customer ${String(partnerId).slice(0, 6)}`;
       const lastAt = last?.at ? new Date(last.at).getTime() : 0;
       const lastPreview = last?.text || "No messages yet";
       return { partnerId, partnerName, isVendorKnown: !!partnerVendor, lastAt, lastPreview, count: msgs.length };
@@ -121,21 +104,19 @@ export default function Messages({ vendors = [], threads = {}, onSend, onOpenVen
     return items.sort((a, b) => b.lastAt - a.lastAt);
   }, [threads, vendorById]);
 
-  const [activePartnerId, setActivePartnerId] = useState(null);
-  const activeThread = activePartnerId ? threads[activePartnerId] || [] : [];
-  const activePartnerVendor = activePartnerId ? vendorById[activePartnerId] : null;
-
-  // Empty inbox: show "No Chats"
   if (conversations.length === 0) {
     return <EmptyState title="No Chats" body="Start an enquiry from a product or vendor page to begin." />;
   }
 
-  // If a partner is selected, show the thread view
+  const [activePartnerId, setActivePartnerId] = useState(null);
+  const activeThread = activePartnerId ? threads[activePartnerId] || [] : [];
+  const activePartnerVendor = activePartnerId ? vendorById[activePartnerId] : null;
+
   if (activePartnerId) {
     return (
       <ChatThreadScreen
         partnerId={activePartnerId}
-        partnerName={activePartnerVendor ? activePartnerVendor.name : `Customer ${activePartnerId.slice(0, 6)}`}
+        partnerName={activePartnerVendor ? activePartnerVendor.name : `Customer ${String(activePartnerId).slice(0, 6)}`}
         isVendorKnown={!!activePartnerVendor}
         onOpenVendor={onOpenVendor}
         thread={activeThread}
@@ -145,7 +126,6 @@ export default function Messages({ vendors = [], threads = {}, onSend, onOpenVen
     );
   }
 
-  // Otherwise show the conversation list
   return (
     <div className="h-[70vh]">
       <h3 className="font-semibold mb-3">Conversations</h3>

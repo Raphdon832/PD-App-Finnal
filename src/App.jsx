@@ -107,6 +107,25 @@ async function reverseGeocode(lat, lng) {
   }
 }
 
+/* ------------------- identity + safety helpers ------------------- */
+const asArray = (v) => (Array.isArray(v) ? v : []);
+
+const getVendorForPharm = (me, vendors) =>
+  me?.role === "pharmacist"
+    ? vendors.find((v) => v.name === me.pharmacyName) || null
+    : null;
+
+const getCustomerId = (me) => me?.uid || me?.id || null;
+const getVendorId = (me, vendors) => getVendorForPharm(me, vendors)?.id || null;
+
+const seenKeyFor = (me, vendors) => {
+  if (!me) return null;
+  if (me.role === "pharmacist")
+    return `PD_LAST_MSG_SEEN_PHARM_${getVendorId(me, vendors) || "unknown"}`;
+  return `PD_LAST_MSG_SEEN_CUST_${getCustomerId(me) || "unknown"}`;
+};
+/* --------------------------------------------------------------- */
+
 export default function App() {
   const [state, setState] = React.useState(() =>
     loadFromLS("PD_STATE", {
@@ -117,16 +136,30 @@ export default function App() {
       products: seedProducts,
       cart: [],
       orders: [],
-      threads: {}, // { [vendorId]: [{id, from: 'me' | 'them', text, at: ISOString}] }
-      /** NEW: track when user last viewed Messages to compute unread badge */
-      lastMessagesSeenAt: loadFromLS("PD_LAST_MSG_SEEN_AT", 0),
+
+      // unified messaging: per (vendorId, customerId)
+      // { id, vendorId, customerId, lastAt, messages: [{id, from:'customer'|'vendor', text, at}] }
+      conversations: [],
+
+      lastMessagesSeenAt: 0,
       toasts: [],
       userLoc: null,
       userPlace: null,
     })
   );
+
+  /* ---- migration: ensure conversations exists even with old PD_STATE ---- */
+  React.useEffect(() => {
+    setState((s) => {
+      if (Array.isArray(s.conversations)) return s;
+      return { ...s, conversations: [] };
+    });
+  }, []);
+
+  /* persist */
   React.useEffect(() => saveToLS("PD_STATE", state), [state]);
 
+  /* geolocation */
   React.useEffect(() => {
     if (!("geolocation" in navigator)) return;
     navigator.geolocation.getCurrentPosition(
@@ -139,6 +172,7 @@ export default function App() {
     );
   }, []);
 
+  /* reverse geocode */
   React.useEffect(() => {
     let cancelled = false;
     async function run() {
@@ -153,19 +187,38 @@ export default function App() {
   }, [state.userLoc]);
 
   const me = state.me;
+  const myVendor = React.useMemo(
+    () => getVendorForPharm(me, state.vendors),
+    [me, state.vendors]
+  );
 
-  /** helper to persist lastMessagesSeenAt */
+  /* ensure customers have a stable uid */
+  React.useEffect(() => {
+    if (!me) return;
+    if (me.role === "customer" && !me.uid) {
+      setState((s) => ({ ...s, me: { ...s.me, uid: s.me.id || uid() } }));
+    }
+  }, [me]);
+
+  /* load per-account last seen timestamp */
+  React.useEffect(() => {
+    const key = seenKeyFor(me, state.vendors);
+    if (!key) return;
+    const v = Number(localStorage.getItem(key) || 0);
+    setState((s) => ({ ...s, lastMessagesSeenAt: v }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [me?.role, myVendor?.id]);
+
   const _setLastMessagesSeenNow = React.useCallback(() => {
+    const key = seenKeyFor(me, state.vendors);
+    if (!key) return;
     const now = Date.now();
-    saveToLS("PD_LAST_MSG_SEEN_AT", now);
+    localStorage.setItem(key, String(now));
     setState((s) => ({ ...s, lastMessagesSeenAt: now }));
-  }, []);
+  }, [me, state.vendors]);
 
   const go = (screen, screenParams = {}) => {
-    // When navigating to Messages, clear unread by marking "seen now"
-    if (screen === "messages") {
-      _setLastMessagesSeenNow();
-    }
+    if (screen === "messages") _setLastMessagesSeenNow();
     setState((s) => ({ ...s, screen, screenParams }));
   };
 
@@ -234,7 +287,10 @@ export default function App() {
             ? { ...ci, qty: Math.min(ci.qty + 1, p.stock) }
             : ci
         );
-      else cart = [...s.cart, { id: uid(), productId, vendorId: p.vendorId, qty: 1 }];
+      else cart = [
+        ...s.cart,
+        { id: uid(), productId, vendorId: p.vendorId, qty: 1 },
+      ];
       return { ...s, cart };
     });
 
@@ -255,7 +311,12 @@ export default function App() {
         const p = s.products.find((p) => p.id === ci.productId);
         return sum + (p ? p.price * ci.qty : 0);
       }, 0);
-      const order = { id: uid(), items: s.cart, total, createdAt: new Date().toISOString() };
+      const order = {
+        id: uid(),
+        items: s.cart,
+        total,
+        createdAt: new Date().toISOString(),
+      };
       toast("Order placed. Pharmacist will confirm shortly.", "success");
       return { ...s, orders: [order, ...s.orders], cart: [], screen: "orders" };
     });
@@ -270,46 +331,162 @@ export default function App() {
     });
 
   const addProduct = (p) =>
-    setState((s) => ({ ...s, products: [{ ...p, id: uid() }, ...s.products] }));
+    setState((s) => ({
+      ...s,
+      products: [{ ...p, id: uid() }, ...s.products],
+    }));
   const removeProduct = (pid) =>
     setState((s) => ({
       ...s,
       products: s.products.filter((p) => p.id !== pid),
     }));
 
-  const sendMessage = (vendorId, from, text) =>
-    setState((s) => {
-      const thread = s.threads[vendorId] || [];
-      const msg = { id: uid(), from, text, at: new Date().toISOString() };
-      return { ...s, threads: { ...s.threads, [vendorId]: [...thread, msg] } };
-    });
+  /* -------------------------- Messaging (unique + safe) -------------------------- */
+  const getOrCreateConversation = React.useCallback(
+    (vendorId, customerId) => {
+      if (!vendorId || !customerId) return null;
+      const list = asArray(state.conversations);
+      let conv = list.find(
+        (c) => c.vendorId === vendorId && c.customerId === customerId
+      );
+      if (!conv) {
+        conv = {
+          id: uid(),
+          vendorId,
+          customerId,
+          lastAt: Date.now(),
+          messages: [],
+        };
+        setState((s) => ({
+          ...s,
+          conversations: [conv, ...asArray(s.conversations)],
+        }));
+      }
+      return conv;
+    },
+    [state.conversations]
+  );
 
-  const cartTotal = state.cart.reduce((sum, ci) => {
-    const p = productById(ci.productId);
-    return sum + (p ? p.price * ci.qty : 0);
-  }, 0);
+  const sendConversationMessage = React.useCallback(
+    (vendorId, customerId, text, fromRole) => {
+      if (!vendorId || !customerId || !text?.trim()) return;
+      setState((s) => {
+        const list = asArray(s.conversations);
+        const idx = list.findIndex(
+          (c) => c.vendorId === vendorId && c.customerId === customerId
+        );
+        const nowIso = new Date().toISOString();
+        const newMsg = { id: uid(), from: fromRole, text, at: nowIso };
 
-  // ---- cart badge count
+        if (idx === -1) {
+          const conv = {
+            id: uid(),
+            vendorId,
+            customerId,
+            lastAt: Date.now(),
+            messages: [newMsg],
+          };
+          return { ...s, conversations: [conv, ...list] };
+        } else {
+          const conv = list[idx];
+          const updated = {
+            ...conv,
+            lastAt: Date.now(),
+            messages: [...asArray(conv.messages), newMsg],
+          };
+          const next = [...list];
+          next[idx] = updated;
+          return { ...s, conversations: next };
+        }
+      });
+    },
+    []
+  );
+
+  // customer starts/continues a chat from product/vendor
+  const startChatWithVendor = (vendorId, initialText) => {
+    const customerId = getCustomerId(me);
+    if (!customerId) return;
+    if (initialText) {
+      sendConversationMessage(vendorId, customerId, initialText, "customer");
+    } else {
+      getOrCreateConversation(vendorId, customerId);
+    }
+    go("messages");
+  };
+
+  // send handler for Messages page
+  const onSendFromMessages = (partnerId, text) => {
+    if (!me) return;
+    if (me.role === "customer") {
+      const customerId = getCustomerId(me);
+      sendConversationMessage(partnerId, customerId, text, "customer");
+    } else if (me.role === "pharmacist" && myVendor?.id) {
+      sendConversationMessage(myVendor.id, partnerId, text, "vendor");
+    }
+  };
+
+  /* --------------------- counts + derived inbox threads --------------------- */
   const cartCount = state.cart.reduce((sum, ci) => sum + ci.qty, 0);
 
-  /** ---- messages unread badge count (NEW)
-   * Counts messages not from "me" that arrived after lastMessagesSeenAt.
-   */
+  const conversationsSafe = asArray(state.conversations);
+
   const unreadMessages = React.useMemo(() => {
     const since = Number(state.lastMessagesSeenAt) || 0;
     let total = 0;
-    for (const vendorId of Object.keys(state.threads || {})) {
-      const msgs = state.threads[vendorId] || [];
-      for (const m of msgs) {
-        if (m?.from !== "me") {
-          const t = new Date(m.at || 0).getTime();
-          if (t > since) total += 1;
+    for (const c of conversationsSafe) {
+      if (me?.role === "customer") {
+        if (c.customerId !== getCustomerId(me)) continue;
+      } else if (me?.role === "pharmacist") {
+        if (c.vendorId !== getVendorId(me, state.vendors)) continue;
+      } else continue;
+
+      for (const m of asArray(c.messages)) {
+        const t = new Date(m.at || 0).getTime();
+        if (t > since) {
+          if (me?.role === "customer" && m.from === "vendor") total += 1;
+          if (me?.role === "pharmacist" && m.from === "customer") total += 1;
         }
       }
     }
     return total;
-  }, [state.threads, state.lastMessagesSeenAt]);
+  }, [conversationsSafe, state.lastMessagesSeenAt, me, state.vendors]);
 
+  const inboxThreads = React.useMemo(() => {
+    const map = {};
+    for (const c of conversationsSafe) {
+      if (me?.role === "customer") {
+        if (c.customerId !== getCustomerId(me)) continue;
+        const key = c.vendorId; // partner is vendor
+        const arr = map[key] || [];
+        for (const m of asArray(c.messages)) {
+          arr.push({
+            id: m.id,
+            from: m.from === "customer" ? "me" : "them",
+            text: m.text,
+            at: m.at,
+          });
+        }
+        map[key] = arr;
+      } else if (me?.role === "pharmacist" && myVendor?.id) {
+        if (c.vendorId !== myVendor.id) continue;
+        const key = c.customerId; // partner is customer
+        const arr = map[key] || [];
+        for (const m of asArray(c.messages)) {
+          arr.push({
+            id: m.id,
+            from: m.from === "vendor" ? "me" : "them",
+            text: m.text,
+            at: m.at,
+          });
+        }
+        map[key] = arr;
+      }
+    }
+    return map;
+  }, [conversationsSafe, me, myVendor?.id]);
+
+  /* -------------------------------- Screens -------------------------------- */
   const Screens = {
     landing: <Landing onSelectRole={(role) => go("auth", { role })} />,
 
@@ -317,13 +494,17 @@ export default function App() {
       <AuthFlow
         role={state.screenParams.role}
         onBack={() => go("landing")}
-        onDone={(user) =>
+        onDone={(user) => {
+          const withUid =
+            user.role === "customer"
+              ? { ...user, uid: user.uid || user.id || uid() }
+              : user;
           setState((s) => ({
             ...s,
-            me: user,
-            screen: user.role === "customer" ? "home" : "vendorDashboard",
-          }))
-        }
+            me: withUid,
+            screen: withUid.role === "customer" ? "home" : "vendorDashboard",
+          }));
+        }}
       />
     ),
 
@@ -333,10 +514,7 @@ export default function App() {
         vendors={state.vendors}
         products={state.products}
         userLoc={state.userLoc}
-        addToCart={(id) => {
-          // no toast; badge will update
-          addToCart(id);
-        }}
+        addToCart={(id) => addToCart(id)}
       />
     ),
     catalog: (
@@ -345,10 +523,7 @@ export default function App() {
         vendors={state.vendors}
         products={state.products}
         userLoc={state.userLoc}
-        addToCart={(id) => {
-          // no toast; badge will update
-          addToCart(id);
-        }}
+        addToCart={(id) => addToCart(id)}
         initialCategory={state.screenParams.category}
       />
     ),
@@ -357,10 +532,8 @@ export default function App() {
         product={productById(state.screenParams.id)}
         vendor={vendorById(productById(state.screenParams.id)?.vendorId)}
         onVendor={(id) => go("vendorProfile", { id })}
-        onAdd={() => {
-          // no toast; badge will update
-          addToCart(state.screenParams.id);
-        }}
+        onAdd={() => addToCart(state.screenParams.id)}
+        onEnquiry={(vendorId, text) => startChatWithVendor(vendorId, text)}
       />
     ),
     cart: (
@@ -369,20 +542,37 @@ export default function App() {
         productById={productById}
         setQty={setQty}
         removeLine={removeLine}
-        total={cartTotal}
+        total={state.cart.reduce((sum, ci) => {
+          const p = productById(ci.productId);
+          return sum + (p ? p.price * ci.qty : 0);
+        }, 0)}
         onCheckout={() => checkout()}
       />
     ),
-    checkout: <Checkout total={cartTotal} onPlace={checkout} onCancel={() => go("cart")} />,
-    orders: <Orders orders={state.orders} productById={productById} />,
-    messages: (
-      <Messages
-        vendors={state.vendors}
-        threads={state.threads}
-        onOpenVendor={(id) => go("vendorProfile", { id })}
-        onSend={(vendorId, text) => sendMessage(vendorId, "me", text)}
+    checkout: (
+      <Checkout
+        total={state.cart.reduce((sum, ci) => {
+          const p = productById(ci.productId);
+          return sum + (p ? p.price * ci.qty : 0);
+        }, 0)}
+        onPlace={checkout}
+        onCancel={() => go("cart")}
       />
     ),
+    orders: <Orders orders={state.orders} productById={productById} />,
+
+    messages:
+      Object.keys(inboxThreads).length === 0 ? (
+        <div className="p-6 text-center text-sm text-slate-500">No Chats</div>
+      ) : (
+        <Messages
+          vendors={state.vendors}
+          threads={inboxThreads || {}}
+          onOpenVendor={(id) => go("vendorProfile", { id })}
+          onSend={(partnerId, text) => onSendFromMessages(partnerId, text)}
+        />
+      ),
+
     vendorDashboard: (
       <VendorDashboard
         me={state.me}
@@ -390,7 +580,9 @@ export default function App() {
         myVendor={
           state.me
             ? state.vendors.find((v) =>
-                state.me.role === "pharmacist" ? v.name === state.me.pharmacyName : false
+                state.me.role === "pharmacist"
+                  ? v.name === state.me.pharmacyName
+                  : false
               )
             : null
         }
@@ -406,10 +598,20 @@ export default function App() {
             for (const it of items) {
               let vendorId = it.vendorId;
               if (!vendorId) {
-                const vName = it.vendorName || state.me?.pharmacyName || "My Pharmacy";
+                const vName =
+                  it.vendorName || state.me?.pharmacyName || "My Pharmacy";
                 let v = vendors.find((v) => v.name === vName);
                 if (!v) {
-                  v = { id: uid(), name: vName, bio: "", address: "", contact: "", etaMins: 30, lat: null, lng: null };
+                  v = {
+                    id: uid(),
+                    name: vName,
+                    bio: "",
+                    address: "",
+                    contact: "",
+                    etaMins: 30,
+                    lat: null,
+                    lng: null,
+                  };
                   vendors.push(v);
                   createdVendors++;
                 }
@@ -429,22 +631,31 @@ export default function App() {
             }
             return { ...s, vendors, products };
           });
-          toast(`Imported ${added} item(s)` + (createdVendors ? `, ${createdVendors} vendor(s)` : ""));
+          toast(
+            `Imported ${added} item(s)` +
+              (createdVendors ? `, ${createdVendors} vendor(s)` : "")
+          );
         }}
       />
     ),
     vendorProfile: (
       <VendorProfile
         vendor={vendorById(state.screenParams.id)}
-        products={state.products.filter((p) => p.vendorId === state.screenParams.id)}
-        onMessage={(id, text) => sendMessage(id, "me", text)}
-        onAddToCart={(id) => {
-          // no toast; badge will update
-          addToCart(id);
-        }}
+        products={state.products.filter(
+          (p) => p.vendorId === state.screenParams.id
+        )}
+        onMessage={(vendorId, text) => startChatWithVendor(vendorId, text)}
+        onAddToCart={(id) => addToCart(id)}
       />
     ),
-    profile: <Profile me={me} onLogout={() => setState((s) => ({ ...s, me: null, screen: "landing" }))} />,
+    profile: (
+      <Profile
+        me={me}
+        onLogout={() =>
+          setState((s) => ({ ...s, me: null, screen: "landing" }))
+        }
+      />
+    ),
   };
 
   const showBottomNav = state.screen !== "landing" && state.screen !== "auth";
@@ -452,29 +663,80 @@ export default function App() {
   const bottomTabs =
     me?.role === "pharmacist"
       ? [
-          { key: "vendorDashboard", label: "Dashboard", icon: <Store className="h-5 w-5" />, onClick: () => go("vendorDashboard") },
-          { key: "orders", label: "Orders", icon: <Package className="h-5 w-5" />, onClick: () => go("orders") },
-          { key: "messages", label: "Messages", icon: <MessageSquare className="h-5 w-5" />, onClick: () => go("messages") },
-          { key: "profile", label: "Profile", icon: <User2 className="h-5 w-5" />, onClick: () => go("profile") },
+          {
+            key: "vendorDashboard",
+            label: "Dashboard",
+            icon: <Store className="h-5 w-5" />,
+            onClick: () => go("vendorDashboard"),
+          },
+          {
+            key: "orders",
+            label: "Orders",
+            icon: <Package className="h-5 w-5" />,
+            onClick: () => go("orders"),
+          },
+          {
+            key: "messages",
+            label: "Messages",
+            icon: <MessageSquare className="h-5 w-5" />,
+            onClick: () => go("messages"),
+          },
+          {
+            key: "profile",
+            label: "Profile",
+            icon: <User2 className="h-5 w-5" />,
+            onClick: () => go("profile"),
+          },
         ]
       : [
-          { key: "home", label: "Home", icon: <HomeIcon className="h-5 w-5" />, onClick: () => go("home") },
-          { key: "orders", label: "Orders", icon: <Package className="h-5 w-5" />, onClick: () => go("orders") },
-          { key: "messages", label: "Messages", icon: <MessageSquare className="h-5 w-5" />, onClick: () => go("messages") },
-          { key: "cart", label: "Cart", icon: <ShoppingCart className="h-5 w-5" />, onClick: () => go("cart") },
-          { key: "profile", label: "Profile", icon: <User2 className="h-5 w-5" />, onClick: () => go("profile") },
+          {
+            key: "home",
+            label: "Home",
+            icon: <HomeIcon className="h-5 w-5" />,
+            onClick: () => go("home"),
+          },
+          {
+            key: "orders",
+            label: "Orders",
+            icon: <Package className="h-5 w-5" />,
+            onClick: () => go("orders"),
+          },
+          {
+            key: "messages",
+            label: "Messages",
+            icon: <MessageSquare className="h-5 w-5" />,
+            onClick: () => go("messages"),
+          },
+          {
+            key: "cart",
+            label: "Cart",
+            icon: <ShoppingCart className="h-5 w-5" />,
+            onClick: () => go("cart"),
+          },
+          {
+            key: "profile",
+            label: "Profile",
+            icon: <User2 className="h-5 w-5" />,
+            onClick: () => go("profile"),
+          },
         ];
 
   const locText =
     state.userPlace?.label ||
-    (state.userLoc ? `${state.userLoc.lat.toFixed(2)}°, ${state.userLoc.lng.toFixed(2)}°` : "Location off");
+    (state.userLoc
+      ? `${state.userLoc.lat.toFixed(2)}°, ${state.userLoc.lng.toFixed(2)}°`
+      : "Location off");
 
   return (
     <div className="min-h-screen bg-white text-slate-900">
       <div className="sticky top-0 z-40 bg-white/70 backdrop-blur border-b border-slate-200">
         <div className="mx-auto max-w-5xl px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <img src={pdLogo} alt="PD — Healthcare at your doorstep" className="h-7 w-auto select-none" />
+            <img
+              src={pdLogo}
+              alt="PD — Healthcare at your doorstep"
+              className="h-7 w-auto select-none"
+            />
           </div>
           <div className="text-xs text-slate-700 flex items-center gap-3">
             <span className="inline-flex items-center gap-1">
@@ -483,7 +745,9 @@ export default function App() {
             </span>
             <span className="inline-flex items-center gap-1">
               <Timer className="h-4 w-4" />
-              {dynamicEta != null && targetVendor?.name ? `${dynamicEta} mins to ${targetVendor.name}` : etaLabel}
+              {dynamicEta != null && targetVendor?.name
+                ? `${dynamicEta} mins to ${targetVendor.name}`
+                : etaLabel}
             </span>
           </div>
         </div>
@@ -508,24 +772,31 @@ export default function App() {
           role="navigation"
           className="fixed bottom-3 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-1.5rem)] max-w-md bg-white/95 border border-slate-200 shadow-xl backdrop-blur rounded-3xl"
         >
-          <div className="grid" style={{ gridTemplateColumns: `repeat(${bottomTabs.length}, minmax(0, 1fr))` }}>
+          <div
+            className="grid"
+            style={{
+              gridTemplateColumns: `repeat(${bottomTabs.length}, minmax(0, 1fr))`,
+            }}
+          >
             {bottomTabs.map((tab) => {
               const isActive = state.screen === tab.key;
 
-              // Existing cart badge
               const showCartBadge = tab.key === "cart" && cartCount > 0;
               const cartBadgeText = cartCount > 99 ? "99+" : String(cartCount);
 
-              // NEW: messages badge
-              const showMsgBadge = tab.key === "messages" && unreadMessages > 0;
-              const msgBadgeText = unreadMessages > 99 ? "99+" : String(unreadMessages);
+              const showMsgBadge =
+                tab.key === "messages" && unreadMessages > 0;
+              const msgBadgeText =
+                unreadMessages > 99 ? "99+" : String(unreadMessages);
 
               return (
                 <button
                   key={tab.key}
                   type="button"
                   onClick={tab.onClick}
-                  className={`py-3 flex flex-col items-center justify-center text-xs ${isActive ? "text-sky-600" : "text-slate-700"}`}
+                  className={`py-3 flex flex-col items-center justify-center text-xs ${
+                    isActive ? "text-sky-600" : "text-slate-700"
+                  }`}
                 >
                   <div className="relative">
                     {tab.icon}
