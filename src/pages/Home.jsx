@@ -114,7 +114,7 @@ export default function Home({ go, vendors, products, addToCart, userLoc }) {
                     <div className="mt-0.5 text-[11px] text-slate-500">{etaLabel}</div>
                   )}
                   <div className="mt-2 flex items-center gap-2">
-                    <Button size="sm" className="flex-1 rounded-sm" onClick={() => go("product", { id: p.id })}>
+                    <Button size="sm" className="flex-1 rounded-[1px]" onClick={() => go("product", { id: p.id })}>
                       View
                     </Button>
                     <Button size="icon" variant="outline" onClick={() => addToCart(p.id)}>
