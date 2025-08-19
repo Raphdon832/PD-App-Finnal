@@ -1,6 +1,6 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MapPin, Timer, CheckCircle, AlertTriangle, Phone } from "lucide-react"; // ← added Phone
+import { MapPin, Timer, CheckCircle, AlertTriangle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { loadFromLS, saveToLS, uid } from "@/lib/utils";
@@ -18,6 +18,8 @@ import DashboardSvgRaw from "@/assets/icons/dashboard.svg?raw";
 /* ==================== Fix A: sanitize Figma colors -> currentColor ==================== */
 const sanitizeSvgColors = (raw) => {
   let s = raw;
+
+  // Replace hardcoded fills/strokes with currentColor, but keep fill="none" intact
   s = s
     .replace(/fill="(?!none)[^"]*"/gi, 'fill="currentColor"')
     .replace(/stroke="[^"]*"/gi, 'stroke="currentColor"')
@@ -26,11 +28,17 @@ const sanitizeSvgColors = (raw) => {
         .replace(/fill:\s*(#[0-9a-f]{3,8}|rgb\([^)]+\))/gi, "fill:currentColor")
         .replace(/stroke:\s*(#[0-9a-f]{3,8}|rgb\([^)]+\))/gi, "stroke:currentColor")
     );
+
+  // Ensure viewBox exists so the icon scales; adjust if your artboard is different
   if (!/viewBox=/.test(s)) s = s.replace("<svg", '<svg viewBox="0 0 24 24"');
+
+  // Let the wrapper control size
   s = s.replace("<svg", '<svg style="width:100%;height:100%;display:block"');
+
   return s;
 };
 
+/* Turn a raw <svg> string into a React component that sizes via className */
 const makeSvgIcon = (raw) => {
   const fixed = sanitizeSvgColors(raw);
   return function SvgIcon({ className = "h-5 w-5", ...rest }) {
@@ -53,13 +61,14 @@ const CartNavIcon = makeSvgIcon(CartSvgRaw);
 const ProfileNavIcon = makeSvgIcon(ProfileSvgRaw);
 const DashboardNavIcon = makeSvgIcon(DashboardSvgRaw);
 
+/* Map bottom-tab keys to your custom SVG components */
 const NAV_ICONS = {
   home: HomeNavIcon,
   orders: OrdersNavIcon,
   messages: MessagesNavIcon,
   cart: CartNavIcon,
   profile: ProfileNavIcon,
-  vendorDashboard: DashboardNavIcon,
+  vendorDashboard: DashboardNavIcon, // pharmacist dashboard
 };
 
 import Landing from "@/pages/Landing";
@@ -168,6 +177,7 @@ const seenKeyFor = (me, vendors) => {
     return `PD_LAST_MSG_SEEN_PHARM_${getVendorId(me, vendors) || "unknown"}`;
   return `PD_LAST_MSG_SEEN_CUST_${getCustomerId(me) || "unknown"}`;
 };
+/* --------------------------------------------------------------- */
 
 export default function App() {
   const [state, setState] = React.useState(() =>
@@ -179,7 +189,11 @@ export default function App() {
       products: seedProducts,
       cart: [],
       orders: [],
+
+      // unified messaging per (vendorId, customerId)
+      // { id, vendorId, customerId, customerName?, lastAt, messages: [{id, from:'customer'|'vendor', text, at}] }
       conversations: [],
+
       lastMessagesSeenAt: 0,
       toasts: [],
       userLoc: null,
@@ -187,14 +201,17 @@ export default function App() {
     })
   );
 
+  /* migration: ensure conversations array exists */
   React.useEffect(() => {
     setState((s) =>
       Array.isArray(s.conversations) ? s : { ...s, conversations: [] }
     );
   }, []);
 
+  /* persist */
   React.useEffect(() => saveToLS("PD_STATE", state), [state]);
 
+  /* geolocation */
   React.useEffect(() => {
     if (!("geolocation" in navigator)) return;
     navigator.geolocation.getCurrentPosition(
@@ -207,6 +224,7 @@ export default function App() {
     );
   }, []);
 
+  /* reverse geocode */
   React.useEffect(() => {
     let cancelled = false;
     async function run() {
@@ -226,6 +244,7 @@ export default function App() {
     [me, state.vendors]
   );
 
+  /* ensure customers have stable uid */
   React.useEffect(() => {
     if (!me) return;
     if (me.role === "customer" && !me.uid) {
@@ -233,6 +252,7 @@ export default function App() {
     }
   }, [me]);
 
+  /* load per-account last seen timestamp */
   React.useEffect(() => {
     const key = seenKeyFor(me, state.vendors);
     if (!key) return;
@@ -466,6 +486,7 @@ export default function App() {
     go("messages");
   };
 
+  // send handler for Messages page
   const onSendFromMessages = (partnerId, text) => {
     if (!me) return;
     if (me.role === "customer") {
@@ -480,21 +501,6 @@ export default function App() {
     } else if (me.role === "pharmacist" && myVendor?.id) {
       sendConversationMessage(myVendor.id, partnerId, text, "vendor");
     }
-  };
-
-  /* --------------------- CALL: helper for Product + Messages --------------------- */
-  const normalizePhone = (v) =>
-    (v || "").toString().replace(/[^\d+]/g, "").replace(/^00/, "+");
-
-  const callVendor = (vendorId) => {
-    const v = vendorById(vendorId);
-    const tel =
-      normalizePhone(v?.phone || v?.contact || v?.tel || v?.phoneNumber || "");
-    if (!tel) {
-      toast("No phone number for this pharmacy.", "error");
-      return;
-    }
-    window.location.href = `tel:${tel}`;
   };
 
   /* --------------------- counts + derived inbox threads --------------------- */
@@ -522,12 +528,13 @@ export default function App() {
     return total;
   }, [conversationsSafe, state.lastMessagesSeenAt, me, state.vendors]);
 
+  // Build legacy-compatible threads AND a pharmacist-only name map via augmented vendors
   const inboxThreads = React.useMemo(() => {
     const map = {};
     for (const c of conversationsSafe) {
       if (me?.role === "customer") {
         if (c.customerId !== getCustomerId(me)) continue;
-        const key = c.vendorId;
+        const key = c.vendorId; // partner is vendor
         const arr = map[key] || [];
         for (const m of asArray(c.messages)) {
           arr.push({
@@ -540,7 +547,7 @@ export default function App() {
         map[key] = arr;
       } else if (me?.role === "pharmacist" && myVendor?.id) {
         if (c.vendorId !== myVendor.id) continue;
-        const key = c.customerId;
+        const key = c.customerId; // partner is customer
         const arr = map[key] || [];
         for (const m of asArray(c.messages)) {
           arr.push({
@@ -556,6 +563,7 @@ export default function App() {
     return map;
   }, [conversationsSafe, me, myVendor?.id]);
 
+  // For pharmacist view: augment vendors with "virtual vendors" = customers (id=name: customerId, name=customerName)
   const vendorsForMessages = React.useMemo(() => {
     if (me?.role !== "pharmacist" || !myVendor?.id) return state.vendors;
 
@@ -613,41 +621,15 @@ export default function App() {
         initialCategory={state.screenParams.category}
       />
     ),
-
-    // ===== Product page with Back + Call to order =====
-    product: (() => {
-      const product = productById(state.screenParams.id);
-      const vendor = vendorById(productById(state.screenParams.id)?.vendorId);
-      const canCall = Boolean(
-        (vendor?.phone || vendor?.contact || vendor?.tel || vendor?.phoneNumber)
-      );
-
-      return (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <Button variant="ghost" onClick={() => go("home")}>
-              ← Back
-            </Button>
-            {vendor && canCall && (
-              <Button variant="outline" onClick={() => callVendor(vendor.id)}>
-                <Phone className="h-4 w-4 mr-2" />
-                Call to order
-              </Button>
-            )}
-          </div>
-
-          <ProductDetail
-            product={product}
-            vendor={vendor}
-            onVendor={(id) => go("vendorProfile", { id })}
-            onAdd={() => addToCart(state.screenParams.id)}
-            onEnquiry={(vendorId, text) => startChatWithVendor(vendorId, text)}
-            onCall={() => vendor && callVendor(vendor.id)} // optional inside ProductDetail
-          />
-        </div>
-      );
-    })(),
-
+    product: (
+      <ProductDetail
+        product={productById(state.screenParams.id)}
+        vendor={vendorById(productById(state.screenParams.id)?.vendorId)}
+        onVendor={(id) => go("vendorProfile", { id })}
+        onAdd={() => addToCart(state.screenParams.id)}
+        onEnquiry={(vendorId, text) => startChatWithVendor(vendorId, text)}
+      />
+    ),
     cart: (
       <Cart
         cart={state.cart}
@@ -684,8 +666,6 @@ export default function App() {
             me?.role === "pharmacist" ? undefined : (id) => go("vendorProfile", { id })
           }
           onSend={(partnerId, text) => onSendFromMessages(partnerId, text)}
-          // 👇 you can consume this inside Messages.jsx to render a "Call to order" button in the chat header
-          callVendor={callVendor}
         />
       ),
 
@@ -776,6 +756,7 @@ export default function App() {
 
   const showBottomNav = state.screen !== "landing" && state.screen !== "auth";
 
+  /* bottom tabs: icon-less, icons rendered by key via NAV_ICONS */
   const bottomTabs =
     me?.role === "pharmacist"
       ? [
@@ -872,7 +853,9 @@ export default function App() {
                   }`}
                 >
                   <div className="relative">
+                    {/* Custom SVG (sanitized to use currentColor) */}
                     <IconCmp className="h-5 w-5" />
+
                     {showCartBadge && (
                       <span className="absolute -top-1 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] leading-[18px] text-center font-semibold shadow-sm">
                         {cartBadgeText}
