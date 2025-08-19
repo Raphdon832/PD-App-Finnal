@@ -2,16 +2,12 @@
 @import "tailwindcss";
 @import "leaflet/dist/leaflet.css";
 
-/* App font: Poppins (all weights you likely need) */
-@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap");
-/* Global styles for the app */
-/* (Tailwind classes will override these defaults) */
-/* Note: Tailwind's @apply is not used here to avoid specificity issues */
-/*       and to keep the CSS file small and simple. */
+/* Display font */
+@import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap");
 
 :root {
   --safe-bottom: env(safe-area-inset-bottom);
-  font-family: "Poppins", system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: "Bebas Neue", system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
