@@ -785,29 +785,32 @@ return (
 
   return (
     <div className="min-h-screen bg-white text-slate-900">
-      <div className="sticky top-0 z-40 bg-white/70 backdrop-blur border-b border-slate-200">
-        <div className="mx-auto max-w-5xl px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <img
-              src={pdLogo}
-              alt="PD — Healthcare at your doorstep"
-              className="h-7 w-auto select-none"
-            />
-          </div>
-          <div className="text-xs text-slate-700 flex items-center gap-3">
-            <span className="inline-flex items-center gap-1">
-              <MapPin className="h-4 w-4" />
-              {locText}
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <Timer className="h-4 w-4" />
-              {dynamicEta != null && targetVendor?.name
-                ? `${dynamicEta} mins to ${targetVendor.name}`
-                : etaLabel}
-            </span>
-          </div>
-        </div>
+      {/* OLD
+<div className="sticky top-0 z-40 bg-white/70 backdrop-blur border-b border-slate-200">
+  ...
+</div>
+*/}
+
+{state.screen !== "messages" && (
+  <div className="sticky top-0 z-40 bg-white/70 backdrop-blur border-b border-slate-200">
+    <div className="mx-auto max-w-5xl px-4 py-3 flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <img src={pdLogo} alt="PD — Healthcare at your doorstep" className="h-7 w-auto select-none" />
       </div>
+      <div className="text-xs text-slate-700 flex items-center gap-3">
+        <span className="inline-flex items-center gap-1">
+          <MapPin className="h-4 w-4" />
+          {locText}
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <Timer className="h-4 w-4" />
+          {dynamicEta != null && targetVendor?.name ? `${dynamicEta} mins to ${targetVendor.name}` : etaLabel}
+        </span>
+      </div>
+    </div>
+  </div>
+)}
+
 
       <main className="mx-auto max-w-5xl pb-32 p-3 sm:p-4">
         <AnimatePresence mode="wait">

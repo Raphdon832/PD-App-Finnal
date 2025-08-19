@@ -40,98 +40,107 @@ function ChatThreadScreen({
       : "";
 
   return (
-    <div className="flex flex-col h-[70vh] bg-white rounded-xl shadow p-4">
-      <div className="flex items-center mb-4 gap-2">
-        <Button variant="ghost" size="icon" onClick={onBack}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <h3 className="font-semibold flex-1 truncate">{partnerName}</h3>
-
-        {/* Optional: view store (kept to the LEFT of call button) */}
-        {isVendorKnown && typeof onOpenVendor === "function" && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onOpenVendor(partnerId)}
-            className="inline-flex items-center gap-1"
-          >
-            <Store className="h-4 w-4" />
-            View store
+    // Full-bleed layout inside <main>: stretch to edges and fill height
+    <div className="-mx-3 sm:mx-0 flex flex-col h-[calc(100svh-140px)] sm:h-[calc(100svh-160px)]">
+      {/* Chat header (sticky like a top navbar) */}
+      <div className="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-slate-200">
+        <div className="px-3 sm:px-0 flex items-center gap-2 py-2">
+          <Button variant="ghost" size="icon" onClick={onBack}>
+            <ArrowLeft className="h-5 w-5" />
           </Button>
-        )}
 
-        {/* Call to order on the FAR RIGHT */}
-        {isVendorKnown && phone && (
-          <Button
-            as="a"
-            href={`tel:${phone}`}
-            size="sm"
-            className="inline-flex items-center gap-1"
-          >
-            <Phone className="h-4 w-4" />
-            Call to order
-          </Button>
-        )}
+          <h3 className="font-semibold flex-1 truncate">{partnerName}</h3>
+
+          {isVendorKnown && typeof onOpenVendor === "function" && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onOpenVendor(partnerId)}
+              className="inline-flex items-center gap-1"
+            >
+              <Store className="h-4 w-4" />
+              View store
+            </Button>
+          )}
+
+          {isVendorKnown && phone && (
+            <Button
+              as="a"
+              href={`tel:${phone}`}
+              size="sm"
+              className="inline-flex items-center gap-1"
+            >
+              <Phone className="h-4 w-4" />
+              Call to order
+            </Button>
+          )}
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto mb-2 border rounded p-2 bg-slate-50">
+      {/* Messages area (no box, full height) */}
+      <div className="flex-1 overflow-y-auto px-3 sm:px-0 py-2 bg-transparent">
         {thread.length === 0 ? (
           <div className="text-slate-400 text-center mt-8">No messages yet.</div>
         ) : (
-          thread.map((msg) => (
-            <div
-              key={msg.id}
-              className={`mb-2 flex ${
-                msg.from === "me" ? "justify-end" : "justify-start"
-              }`}
-            >
+          thread.map((msg) => {
+            const mine = msg.from === "me";
+            return (
               <div
-                className={`px-3 py-2 rounded-lg text-sm max-w-[78%] break-words ${
-                  msg.from === "me"
-                    ? "bg-blue-100 text-blue-900"
-                    : "bg-white text-slate-800 border"
-                }`}
+                key={msg.id}
+                className={`mb-3 flex ${mine ? "justify-end" : "justify-start"}`}
               >
-                <div>{msg.text}</div>
-                {msg.at && (
-                  <div className="mt-1 text-[10px] opacity-60">
-                    {new Date(msg.at).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                <div className="max-w-[80%]">
+                  <div className="px-4 py-3 rounded-2xl text-sm leading-snug break-words bg-black text-white">
+                    {msg.text}
                   </div>
-                )}
+                  {msg.at && (
+                    <div
+                      className={`mt-1 text-[10px] text-slate-400 ${
+                        mine ? "text-right" : "text-left"
+                      }`}
+                    >
+                      {new Date(msg.at).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
         <div ref={endRef} />
       </div>
 
-      <div className="flex gap-2">
-        <Input
-          className="flex-1"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Type a message"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && text.trim()) {
-              onSend(partnerId, text.trim());
-              setText("");
-            }
-          }}
-        />
-        <Button
-          type="button"
-          onClick={() => {
-            if (text.trim()) {
-              onSend(partnerId, text.trim());
-              setText("");
-            }
-          }}
-        >
-          Send
-        </Button>
+      {/* Input bar pinned at bottom */}
+      <div className="px-3 sm:px-0 pb-2">
+        <div className="flex items-center gap-2">
+          <Input
+            className="flex-1 rounded-2xl"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Message"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && text.trim()) {
+                onSend(partnerId, text.trim());
+                setText("");
+              }
+            }}
+          />
+          <Button
+            type="button"
+            className="rounded-2xl"
+            onClick={() => {
+              if (text.trim()) {
+                onSend(partnerId, text.trim());
+                setText("");
+              }
+            }}
+          >
+            Send
+          </Button>
+        </div>
       </div>
     </div>
   );
