@@ -105,9 +105,16 @@ function ChatThreadScreen({
             return (
               <div key={msg.id} className={`mb-3 flex ${mine ? "justify-end" : "justify-start"}`}>
                 <div className="max-w-[80%]">
-                  <div className="px-4 py-3 rounded-2xl text-sm leading-snug break-words bg-black text-white">
-                    {msg.text}
-                  </div>
+                  <div
+  className={`px-4 py-3 rounded-2xl text-sm leading-snug break-words ${
+    mine
+      ? "bg-black text-white"   // your own messages
+      : "bg-gray-200 text-black"   // recipient’s messages
+  }`}
+>
+  {msg.text}
+</div>
+
                   {msg.at && (
                     <div className={`mt-1 text-[10px] text-slate-400 ${mine ? "text-right" : "text-left"}`}>
                       {new Date(msg.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
