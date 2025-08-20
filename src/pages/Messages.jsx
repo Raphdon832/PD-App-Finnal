@@ -65,27 +65,27 @@ function ChatThreadScreen({
     // Use 100dvh so the URL bar/show-hide on mobile doesn't clip the top.
     <div className="grid grid-rows-[auto_1fr_auto] h-[100dvh] overflow-hidden">
       {/* Thread header (static) */}
-      <div className="px-4 py-2 flex items-center gap-2 border-b bg-white">
+      <div className="px-4 py-2 flex items-center gap-2 border-b bg-[#DFFDFF] backdrop-blur-xl">
         <Button variant="ghost" size="icon" onClick={onBack}>
-          <ArrowLeft className="h-5 w-5" />
+          <ArrowLeft className="h-5 w-5 text-black" />
         </Button>
-        <h3 className="font-semibold flex-1 truncate">{partnerName}</h3>
+        <h3 className="font-semibold flex-1 truncate text-black">{partnerName}</h3>
 
         {isVendorKnown && typeof onOpenVendor === "function" && (
           <Button
             variant="ghost"
             size="sm"
             onClick={() => onOpenVendor(partnerId)}
-            className="inline-flex items-center gap-1"
+            className="inline-flex items-center gap-1 text-black"
           >
-            <Store className="h-4 w-4" />
+            <Store className="h-4 w-4 text-black" />
             View store
           </Button>
         )}
 
         {isVendorKnown && phone && (
-          <Button as="a" href={`tel:${phone}`} size="sm" className="inline-flex items-center gap-1">
-            <Phone className="h-4 w-4" />
+          <Button as="a" href={`tel:${phone}`} size="sm" className="inline-flex items-center gap-1 bg-blue">
+            <Phone className="h-4 w-4 text-white" />
             Call to order
           </Button>
         )}
