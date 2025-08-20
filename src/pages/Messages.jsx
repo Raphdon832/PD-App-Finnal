@@ -139,14 +139,14 @@ function ChatThreadScreen({
                 <div className={`mb-3 flex ${mine ? "justify-end" : "justify-start"}`}>
                   <div className="max-w-[80%]">
                     <div
-                      className={`px-4 py-3 rounded-2xl text-sm leading-snug break-words ${
-                        mine
-                          ? "bg-black text-white"     // your messages
-                          : "bg-gray-200 text-black"     // recipient's messages
-                      }`}
-                    >
-                      {msg.text}
-                    </div>
+                        className={`px-3 py-2 text-sm leading-snug break-words shadow ${mine
+                        ? "bg-[#000000] text-white rounded-lg rounded-br-none"  // mine
+                        : "bg-gray text-black rounded-lg rounded-bl-none"      // theirs
+}`}
+>
+  {msg.text}
+</div>
+
                     {msg.at && (
                       <div
                         className={`mt-1 text-[10px] text-slate-400 ${
