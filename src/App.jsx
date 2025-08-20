@@ -187,14 +187,21 @@ export default function App() {
     })
   );
 
+  // Hide bottom nav only while inside a chat thread
+  const [hideNavForChatThread, setHideNavForChatThread] =
+    React.useState(false);
+
+  /* migration: ensure conversations array exists */
   React.useEffect(() => {
     setState((s) =>
       Array.isArray(s.conversations) ? s : { ...s, conversations: [] }
     );
   }, []);
 
+  /* persist */
   React.useEffect(() => saveToLS("PD_STATE", state), [state]);
 
+  /* geolocation */
   React.useEffect(() => {
     if (!("geolocation" in navigator)) return;
     navigator.geolocation.getCurrentPosition(
@@ -207,6 +214,7 @@ export default function App() {
     );
   }, []);
 
+  /* reverse geocode */
   React.useEffect(() => {
     let cancelled = false;
     async function run() {
@@ -226,6 +234,7 @@ export default function App() {
     [me, state.vendors]
   );
 
+  /* ensure customers have stable uid */
   React.useEffect(() => {
     if (!me) return;
     if (me.role === "customer" && !me.uid) {
@@ -233,6 +242,7 @@ export default function App() {
     }
   }, [me]);
 
+  /* load per-account last seen timestamp */
   React.useEffect(() => {
     const key = seenKeyFor(me, state.vendors);
     if (!key) return;
@@ -251,6 +261,7 @@ export default function App() {
 
   const go = (screen, screenParams = {}) => {
     if (screen === "messages") _setLastMessagesSeenNow();
+    if (screen !== "messages") setHideNavForChatThread(false); // ensure nav shows elsewhere
     setState((s) => ({ ...s, screen, screenParams }));
   };
 
@@ -304,7 +315,9 @@ export default function App() {
   const dynamicEta = etaMinutes(distanceKm);
   const etaLabel =
     dynamicEta != null
-      ? `${dynamicEta} mins${targetVendor?.name ? ` to ${targetVendor.name}` : ""}`
+      ? `${dynamicEta} mins${
+          targetVendor?.name ? ` to ${targetVendor.name}` : ""
+        }`
       : "—";
 
   const addToCart = (productId) =>
@@ -442,6 +455,7 @@ export default function App() {
     []
   );
 
+  // customer starts/continues chat from product/vendor
   const startChatWithVendor = (vendorId, initialText) => {
     const customerId = getCustomerId(me);
     if (!customerId) return;
@@ -465,6 +479,7 @@ export default function App() {
     go("messages");
   };
 
+  // send handler for Messages page
   const onSendFromMessages = (partnerId, text) => {
     if (!me) return;
     if (me.role === "customer") {
@@ -481,6 +496,7 @@ export default function App() {
     }
   };
 
+  /* --------------------- counts + derived inbox threads --------------------- */
   const cartCount = state.cart.reduce((sum, ci) => sum + ci.qty, 0);
   const conversationsSafe = asArray(state.conversations);
 
@@ -505,12 +521,13 @@ export default function App() {
     return total;
   }, [conversationsSafe, state.lastMessagesSeenAt, me, state.vendors]);
 
+  // Build legacy-compatible threads
   const inboxThreads = React.useMemo(() => {
     const map = {};
     for (const c of conversationsSafe) {
       if (me?.role === "customer") {
         if (c.customerId !== getCustomerId(me)) continue;
-        const key = c.vendorId;
+        const key = c.vendorId; // partner is vendor
         const arr = map[key] || [];
         for (const m of asArray(c.messages)) {
           arr.push({
@@ -523,7 +540,7 @@ export default function App() {
         map[key] = arr;
       } else if (me?.role === "pharmacist" && myVendor?.id) {
         if (c.vendorId !== myVendor.id) continue;
-        const key = c.customerId;
+        const key = c.customerId; // partner is customer
         const arr = map[key] || [];
         for (const m of asArray(c.messages)) {
           arr.push({
@@ -539,6 +556,7 @@ export default function App() {
     return map;
   }, [conversationsSafe, me, myVendor?.id]);
 
+  // For pharmacist view: augment vendors with "virtual vendors" = customers
   const vendorsForMessages = React.useMemo(() => {
     if (me?.role !== "pharmacist" || !myVendor?.id) return state.vendors;
 
@@ -601,33 +619,31 @@ export default function App() {
       const vendor = vendorById(product?.vendorId);
       const phone = vendor?.contact ? normalizePhone(vendor.contact) : "";
 
-      // inside Screens.product:
-return (
-  <div className="space-y-3">
-    {/* RIGHT-ALIGNED Call to order */}
-    <div className="flex items-center gap-2 justify-end">
-      {phone && (
-        <Button
-          as="a"
-          href={`tel:${phone}`}
-          className="inline-flex items-center gap-2"
-        >
-          <Phone className="h-4 w-4" />
-          Call to order
-        </Button>
-      )}
-    </div>
+      return (
+        <div className="space-y-3">
+          {/* RIGHT-ALIGNED Call to order */}
+          <div className="flex items-center gap-2 justify-end">
+            {phone && (
+              <Button
+                as="a"
+                href={`tel:${phone}`}
+                className="inline-flex items-center gap-2"
+              >
+                <Phone className="h-4 w-4" />
+                Call to order
+              </Button>
+            )}
+          </div>
 
-    <ProductDetail
-      product={product}
-      vendor={vendor}
-      onVendor={(id) => go("vendorProfile", { id })}
-      onAdd={() => addToCart(state.screenParams.id)}
-      onEnquiry={(vendorId, text) => startChatWithVendor(vendorId, text)}
-    />
-  </div>
-);
-
+          <ProductDetail
+            product={product}
+            vendor={vendor}
+            onVendor={(id) => go("vendorProfile", { id })}
+            onAdd={() => addToCart(state.screenParams.id)}
+            onEnquiry={(vendorId, text) => startChatWithVendor(vendorId, text)}
+          />
+        </div>
+      );
     })(),
 
     cart: (
@@ -663,14 +679,18 @@ return (
           vendors={vendorsForMessages}
           threads={inboxThreads || {}}
           onOpenVendor={
-            me?.role === "pharmacist" ? undefined : (id) => go("vendorProfile", { id })
+            me?.role === "pharmacist"
+              ? undefined
+              : (id) => go("vendorProfile", { id })
           }
           onSend={(partnerId, text) => onSendFromMessages(partnerId, text)}
-          /* pass resolver so chat header can show "Call to order" */
           resolvePhone={(partnerId) => {
             const v = vendorById(partnerId);
             return v?.contact ? normalizePhone(v.contact) : "";
           }}
+          onActiveThreadChange={(active) =>
+            setHideNavForChatThread(Boolean(active))
+          }
         />
       ),
 
@@ -759,7 +779,14 @@ return (
     ),
   };
 
-  const showBottomNav = state.screen !== "landing" && state.screen !== "auth";
+  // Header: hide entirely on the Messages screen
+  const showHeader = state.screen !== "messages";
+
+  // Bottom nav: hide only while a chat thread is open (inside Messages)
+  const showBottomNav =
+    state.screen !== "landing" &&
+    state.screen !== "auth" &&
+    !(state.screen === "messages" && hideNavForChatThread);
 
   const bottomTabs =
     me?.role === "pharmacist"
@@ -785,32 +812,31 @@ return (
 
   return (
     <div className="min-h-screen bg-white text-slate-900">
-      {/* OLD
-<div className="sticky top-0 z-40 bg-white/70 backdrop-blur border-b border-slate-200">
-  ...
-</div>
-*/}
-
-{state.screen !== "messages" && (
-  <div className="sticky top-0 z-40 bg-white/70 backdrop-blur border-b border-slate-200">
-    <div className="mx-auto max-w-5xl px-4 py-3 flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <img src={pdLogo} alt="PD — Healthcare at your doorstep" className="h-7 w-auto select-none" />
-      </div>
-      <div className="text-xs text-slate-700 flex items-center gap-3">
-        <span className="inline-flex items-center gap-1">
-          <MapPin className="h-4 w-4" />
-          {locText}
-        </span>
-        <span className="inline-flex items-center gap-1">
-          <Timer className="h-4 w-4" />
-          {dynamicEta != null && targetVendor?.name ? `${dynamicEta} mins to ${targetVendor.name}` : etaLabel}
-        </span>
-      </div>
-    </div>
-  </div>
-)}
-
+      {showHeader && (
+        <div className="sticky top-0 z-40 bg-white/70 backdrop-blur border-b border-slate-200">
+          <div className="mx-auto max-w-5xl px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <img
+                src={pdLogo}
+                alt="PD — Healthcare at your doorstep"
+                className="h-7 w-auto select-none"
+              />
+            </div>
+            <div className="text-xs text-slate-700 flex items-center gap-3">
+              <span className="inline-flex items-center gap-1">
+                <MapPin className="h-4 w-4" />
+                {locText}
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <Timer className="h-4 w-4" />
+                {dynamicEta != null && targetVendor?.name
+                  ? `${dynamicEta} mins to ${targetVendor.name}`
+                  : etaLabel}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       <main className="mx-auto max-w-5xl pb-32 p-3 sm:p-4">
         <AnimatePresence mode="wait">
@@ -839,12 +865,15 @@ return (
           >
             {bottomTabs.map((tab) => {
               const isActive = state.screen === tab.key;
+
               const showCartBadge = tab.key === "cart" && cartCount > 0;
               const cartBadgeText = cartCount > 99 ? "99+" : String(cartCount);
+
               const showMsgBadge =
                 tab.key === "messages" && unreadMessages > 0;
               const msgBadgeText =
                 unreadMessages > 99 ? "99+" : String(unreadMessages);
+
               const IconCmp = NAV_ICONS[tab.key] || NAV_ICONS.messages;
 
               return (
@@ -858,6 +887,7 @@ return (
                 >
                   <div className="relative">
                     <IconCmp className="h-5 w-5" />
+
                     {showCartBadge && (
                       <span className="absolute -top-1 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] leading-[18px] text-center font-semibold shadow-sm">
                         {cartBadgeText}

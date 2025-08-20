@@ -26,9 +26,16 @@ function ChatThreadScreen({
   onSend,
   onBack,
   resolvePhone,
+  onActiveThreadChange, // NEW
 }) {
   const [text, setText] = useState("");
   const endRef = useRef(null);
+
+  // Let App know a thread is active (to hide bottom navbar)
+  useEffect(() => {
+    onActiveThreadChange?.(true);
+    return () => onActiveThreadChange?.(false);
+  }, [onActiveThreadChange]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -40,15 +47,13 @@ function ChatThreadScreen({
       : "";
 
   return (
-    // Full-bleed layout inside <main>: stretch to edges and fill height
-    <div className="-mx-3 sm:mx-0 flex flex-col h-[calc(100svh-140px)] sm:h-[calc(100svh-160px)]">
-      {/* Chat header (sticky like a top navbar) */}
-      <div className="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-slate-200">
-        <div className="px-3 sm:px-0 flex items-center gap-2 py-2">
+    <div className="flex flex-col h-[100svh]">
+      {/* Chat-specific top bar (acts like its own navbar) */}
+      <div className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b border-slate-200">
+        <div className="px-3 py-2 flex items-center gap-2">
           <Button variant="ghost" size="icon" onClick={onBack}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-
           <h3 className="font-semibold flex-1 truncate">{partnerName}</h3>
 
           {isVendorKnown && typeof onOpenVendor === "function" && (
@@ -77,8 +82,8 @@ function ChatThreadScreen({
         </div>
       </div>
 
-      {/* Messages area (no box, full height) */}
-      <div className="flex-1 overflow-y-auto px-3 sm:px-0 py-2 bg-transparent">
+      {/* Messages area */}
+      <div className="flex-1 overflow-y-auto px-3 py-2 bg-transparent">
         {thread.length === 0 ? (
           <div className="text-slate-400 text-center mt-8">No messages yet.</div>
         ) : (
@@ -113,8 +118,8 @@ function ChatThreadScreen({
         <div ref={endRef} />
       </div>
 
-      {/* Input bar pinned at bottom */}
-      <div className="px-3 sm:px-0 pb-2">
+      {/* Input bar pinned at bottom (safe-area aware) */}
+      <div className="sticky bottom-0 z-10 bg-white/95 backdrop-blur px-3 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 border-t border-slate-200">
         <div className="flex items-center gap-2">
           <Input
             className="flex-1 rounded-2xl"
@@ -152,6 +157,7 @@ export default function Messages({
   onSend,
   onOpenVendor,
   resolvePhone,
+  onActiveThreadChange, // NEW
 }) {
   const vendorById = useMemo(
     () => Object.fromEntries(vendors.map((v) => [v.id, v])),
@@ -179,6 +185,13 @@ export default function Messages({
     return items.sort((a, b) => b.lastAt - a.lastAt);
   }, [threads, vendorById]);
 
+  const [activePartnerId, setActivePartnerId] = useState(null);
+
+  // Ensure the bottom nav shows when not inside a thread
+  useEffect(() => {
+    if (!activePartnerId) onActiveThreadChange?.(false);
+  }, [activePartnerId, onActiveThreadChange]);
+
   if (conversations.length === 0) {
     return (
       <EmptyState
@@ -188,7 +201,6 @@ export default function Messages({
     );
   }
 
-  const [activePartnerId, setActivePartnerId] = useState(null);
   const activeThread = activePartnerId ? threads[activePartnerId] || [] : [];
   const activePartnerVendor = activePartnerId
     ? vendorById[activePartnerId]
@@ -209,6 +221,7 @@ export default function Messages({
         onSend={onSend}
         onBack={() => setActivePartnerId(null)}
         resolvePhone={resolvePhone}
+        onActiveThreadChange={onActiveThreadChange} // pass down
       />
     );
   }
