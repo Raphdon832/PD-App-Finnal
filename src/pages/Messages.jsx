@@ -65,7 +65,7 @@ function ChatThreadScreen({
     // Use 100dvh so the URL bar/show-hide on mobile doesn't clip the top.
     <div className="grid grid-rows-[auto_1fr_auto] h-[100dvh] overflow-hidden">
       {/* Thread header (static) */}
-      <div className="px-4 py-2 flex items-center gap-2 bg-[#DFFDFF] backdrop-blur-xl">
+      <div className="px-4 py-2 flex items-center gap-2 border-b border-[#F0F0F0] bg-[#FFFFFF] backdrop-blur-xl">
         <Button variant="ghost" size="icon" onClick={onBack}>
           <ArrowLeft className="h-5 w-5 text-black" />
         </Button>
@@ -92,7 +92,11 @@ function ChatThreadScreen({
       </div>
 
       {/* Bubbles only: scrollable (contain overscroll so the page never nudges) */}
-      <div className="overflow-y-auto overscroll-contain px-4 py-2 bg-transparent">
+      <div
+  className="overflow-y-auto overscroll-contain px-4 py-2 bg-cover bg-center"
+  style={{ backgroundImage: "url('/Background-Watermark.png')" }}
+  >
+
         {thread.length === 0 ? (
           <div className="text-slate-400 text-center mt-8">No messages yet.</div>
         ) : (
@@ -119,7 +123,7 @@ function ChatThreadScreen({
 
       {/* Composer (inline, not scrollable with bubbles) */}
       <div
-        className="px-4 py-2 bg-white border-t"
+        className="px-4 py-2 bg-white border-t border-[#F0F0F0]"
         style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 4px)" }}
       >
         <div className="flex items-center gap-2">
