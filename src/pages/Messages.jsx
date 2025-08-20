@@ -25,30 +25,24 @@ function ChatThreadScreen({
   onSend,
   onBack,
   resolvePhone,
-  onActiveChange, // tell App when a thread is open/closed
+  onActiveChange,
 }) {
   const [text, setText] = useState("");
   const endRef = useRef(null);
 
-  // Lock the whole page from scrolling while a thread is open
+  // Lock page scroll while thread is open
   useEffect(() => {
     onActiveChange?.(true);
-
     const html = document.documentElement;
     const body = document.body;
     const prev = {
       htmlOverflow: html.style.overflow,
       bodyOverflow: body.style.overflow,
-      htmlOverscroll: html.style.overscrollBehavior,
     };
-
     html.style.overflow = "hidden";
-    html.style.overscrollBehavior = "contain"; // avoid background bounce/refresh
     body.style.overflow = "hidden";
-
     return () => {
       html.style.overflow = prev.htmlOverflow || "";
-      html.style.overscrollBehavior = prev.htmlOverscroll || "";
       body.style.overflow = prev.bodyOverflow || "";
       onActiveChange?.(false);
     };
@@ -64,15 +58,13 @@ function ChatThreadScreen({
       : "";
 
   return (
-    // Static top bar + composer; only middle column scrolls.
-    <div className="grid grid-rows-[auto_1fr_auto] h-[calc(100svh-4px)] overflow-hidden">
-      {/* Top bar (static) */}
+    <div className="grid grid-rows-[auto_1fr_auto] h-[100svh] overflow-hidden">
+      {/* Top bar */}
       <div className="px-4 py-2 flex items-center gap-2 border-b bg-white">
         <Button variant="ghost" size="icon" onClick={onBack}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <h3 className="font-semibold flex-1 truncate">{partnerName}</h3>
-
         {isVendorKnown && typeof onOpenVendor === "function" && (
           <Button
             variant="ghost"
@@ -84,7 +76,6 @@ function ChatThreadScreen({
             View store
           </Button>
         )}
-
         {isVendorKnown && phone && (
           <Button as="a" href={`tel:${phone}`} size="sm" className="inline-flex items-center gap-1">
             <Phone className="h-4 w-4" />
@@ -93,7 +84,7 @@ function ChatThreadScreen({
         )}
       </div>
 
-      {/* Bubbles only: scrollable */}
+      {/* Scrollable bubbles */}
       <div className="overflow-y-auto px-4 py-2 bg-transparent">
         {thread.length === 0 ? (
           <div className="text-slate-400 text-center mt-8">No messages yet.</div>
@@ -117,13 +108,12 @@ function ChatThreadScreen({
           })
         )}
         <div ref={endRef} />
-        <div className="h-2" />
       </div>
 
-      {/* Composer (static, not scrollable with bubbles) */}
+      {/* Composer (input + send aligned) */}
       <div
         className="px-4 py-2 bg-white border-t"
-        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 4px)" }}
+        style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
         <div className="flex items-center gap-2">
           <Input
@@ -138,8 +128,6 @@ function ChatThreadScreen({
               }
             }}
           />
-        </div>
-        <div className="mt-2 flex justify-end">
           <Button
             type="button"
             className="rounded-2xl"
@@ -167,7 +155,6 @@ export default function Messages({
   onActiveThreadChange,
 }) {
   const vendorById = useMemo(() => Object.fromEntries(vendors.map((v) => [v.id, v])), [vendors]);
-
   const conversations = useMemo(() => {
     const items = Object.entries(threads).map(([partnerId, msgs]) => {
       const last = msgs[msgs.length - 1];
