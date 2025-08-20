@@ -4,6 +4,28 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { MessageSquare, ArrowLeft, Store, Phone } from "lucide-react";
 
+// ---- helpers ----
+function isSameDay(a, b) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+function dayLabel(d) {
+  const today = new Date();
+  const yest = new Date();
+  yest.setDate(today.getDate() - 1);
+  if (isSameDay(d, today)) return "Today";
+  if (isSameDay(d, yest)) return "Yesterday";
+  // e.g., 12 Aug 2025
+  return d.toLocaleDateString(undefined, {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 function EmptyState({ title, body }) {
   return (
     <div className="max-w-md mx-auto text-center p-8 border rounded-2xl bg-white">
@@ -62,9 +84,8 @@ function ChatThreadScreen({
 
   return (
     // Static header + static composer; only middle column scrolls.
-    // Use 100dvh so the URL bar/show-hide on mobile doesn't clip the top.
     <div className="grid grid-rows-[auto_1fr_auto] h-[100dvh] overflow-hidden">
-      {/* Thread header (static) */}
+      {/* Thread header (you can keep your custom color/blur classes here) */}
       <div className="px-4 py-2 flex items-center gap-2 border-b border-[#F0F0F0] bg-[#FFFFFF] backdrop-blur-xl">
         <Button variant="ghost" size="icon" onClick={onBack}>
           <ArrowLeft className="h-5 w-5 text-black" />
@@ -91,44 +112,63 @@ function ChatThreadScreen({
         )}
       </div>
 
-      {/* Bubbles only: scrollable (contain overscroll so the page never nudges) */}
-      <div
-  className="overflow-y-auto overscroll-contain px-4 py-2 bg-cover bg-center"
-  style={{ backgroundImage: "url('/Background-Watermark.png')" }}
-  >
-
+      {/* Bubbles only: scrollable (with date stamps) */}
+      <div className="overflow-y-auto overscroll-contain px-4 py-2 bg-cover bg-center"
+           style={{ backgroundImage: "url('/Background-Watermark.png')" }}>
         {thread.length === 0 ? (
           <div className="text-slate-400 text-center mt-8">No messages yet.</div>
         ) : (
-          thread.map((msg) => {
+          thread.map((msg, i) => {
             const mine = msg.from === "me";
-            return (
-              <div key={msg.id} className={`mb-3 flex ${mine ? "justify-end" : "justify-start"}`}>
-                <div className="max-w-[80%]">
-                  <div
-  className={`px-4 py-3 rounded-2xl text-sm leading-snug break-words ${
-    mine
-      ? "bg-black text-white"   // your own messages
-      : "bg-gray-200 text-black"   // recipient’s messages
-  }`}
->
-  {msg.text}
-</div>
+            const thisDate = new Date(msg.at || 0);
+            const prev = thread[i - 1];
+            const needDateStamp =
+              i === 0 ||
+              !isSameDay(thisDate, new Date(prev?.at || 0));
 
-                  {msg.at && (
-                    <div className={`mt-1 text-[10px] text-slate-400 ${mine ? "text-right" : "text-left"}`}>
-                      {new Date(msg.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            return (
+              <React.Fragment key={msg.id}>
+                {needDateStamp && (
+                  <div className="my-3 flex justify-center">
+                    <span className="text-[11px] px-3 py-1 rounded-full bg-black/10 text-slate-700">
+                      {dayLabel(thisDate)}
+                    </span>
+                  </div>
+                )}
+
+                <div className={`mb-3 flex ${mine ? "justify-end" : "justify-start"}`}>
+                  <div className="max-w-[80%]">
+                    <div
+                      className={`px-4 py-3 rounded-2xl text-sm leading-snug break-words ${
+                        mine
+                          ? "bg-black text-white"     // your messages
+                          : "bg-gray-200 text-black"     // recipient's messages
+                      }`}
+                    >
+                      {msg.text}
                     </div>
-                  )}
+                    {msg.at && (
+                      <div
+                        className={`mt-1 text-[10px] text-slate-400 ${
+                          mine ? "text-right" : "text-left"
+                        }`}
+                      >
+                        {new Date(msg.at).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              </React.Fragment>
             );
           })
         )}
         <div ref={endRef} />
       </div>
 
-      {/* Composer (inline, not scrollable with bubbles) */}
+      {/* Composer (inline, fixed, not scrollable with bubbles) */}
       <div
         className="px-4 py-2 bg-white border-t border-[#F0F0F0]"
         style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 4px)" }}
@@ -171,34 +211,67 @@ export default function Messages({
   onOpenVendor,
   resolvePhone,
   onActiveThreadChange,
+  lastSeenAt = 0,              // ⬅️ NEW: passed from App
 }) {
-  const vendorById = useMemo(() => Object.fromEntries(vendors.map((v) => [v.id, v])), [vendors]);
+  const vendorById = useMemo(
+    () => Object.fromEntries(vendors.map((v) => [v.id, v])),
+    [vendors]
+  );
 
+  // Build conversation cards with UNREAD count (not total)
   const conversations = useMemo(() => {
     const items = Object.entries(threads).map(([partnerId, msgs]) => {
       const last = msgs[msgs.length - 1];
       const partnerVendor = vendorById[partnerId];
-      const partnerName = partnerVendor ? partnerVendor.name : `Customer ${String(partnerId).slice(0, 6)}`;
+      const partnerName = partnerVendor
+        ? partnerVendor.name
+        : `Customer ${String(partnerId).slice(0, 6)}`;
       const lastAt = last?.at ? new Date(last.at).getTime() : 0;
       const lastPreview = last?.text || "No messages yet";
-      return { partnerId, partnerName, isVendorKnown: !!partnerVendor, lastAt, lastPreview, count: msgs.length };
+
+      // unread = only messages from "them" after lastSeenAt
+      const unread = msgs.reduce((acc, m) => {
+        const t = m.at ? new Date(m.at).getTime() : 0;
+        return acc + (m.from === "them" && t > lastSeenAt ? 1 : 0);
+      }, 0);
+
+      return {
+        partnerId,
+        partnerName,
+        isVendorKnown: !!partnerVendor,
+        lastAt,
+        lastPreview,
+        unread,
+      };
     });
+    // sort by last activity desc
     return items.sort((a, b) => b.lastAt - a.lastAt);
-  }, [threads, vendorById]);
+  }, [threads, vendorById, lastSeenAt]);
 
   if (conversations.length === 0) {
-    return <EmptyState title="No Chats" body="Start an enquiry from a product or vendor page to begin." />;
+    return (
+      <EmptyState
+        title="No Chats"
+        body="Start an enquiry from a product or vendor page to begin."
+      />
+    );
   }
 
   const [activePartnerId, setActivePartnerId] = useState(null);
   const activeThread = activePartnerId ? threads[activePartnerId] || [] : [];
-  const activePartnerVendor = activePartnerId ? vendorById[activePartnerId] : null;
+  const activePartnerVendor = activePartnerId
+    ? vendorById[activePartnerId]
+    : null;
 
   if (activePartnerId) {
     return (
       <ChatThreadScreen
         partnerId={activePartnerId}
-        partnerName={activePartnerVendor ? activePartnerVendor.name : `Customer ${String(activePartnerId).slice(0, 6)}`}
+        partnerName={
+          activePartnerVendor
+            ? activePartnerVendor.name
+            : `Customer ${String(activePartnerId).slice(0, 6)}`
+        }
         isVendorKnown={!!activePartnerVendor}
         onOpenVendor={onOpenVendor}
         thread={activeThread}
@@ -212,26 +285,40 @@ export default function Messages({
 
   return (
     <div className="h-[70vh]">
-      <h2 className="text-xl font-bold tracking-wide mb-3 uppercase">Conversations</h2>
-      <div className="space-y-2 overflow-y-auto pr-1" style={{ maxHeight: "calc(70vh - 2rem)" }}>
+      <h2 className="text-xl font-bold tracking-wide mb-3 uppercase">
+        Conversations
+      </h2>
+      <div
+        className="space-y-2 overflow-y-auto pr-1"
+        style={{ maxHeight: "calc(70vh - 2rem)" }}
+      >
         {conversations.map((c) => (
-          <Card key={c.partnerId} className="cursor-pointer" onClick={() => setActivePartnerId(c.partnerId)}>
+          <Card
+            key={c.partnerId}
+            className="cursor-pointer"
+            onClick={() => setActivePartnerId(c.partnerId)}
+          >
             <CardContent className="p-3 flex items-center justify-between">
               <div className="min-w-0">
                 <div className="font-medium text-sm truncate">{c.partnerName}</div>
                 <div className="text-xs text-slate-500 truncate">{c.lastPreview}</div>
               </div>
-              <div className="text-right shrink-0 ml-3">
-                {c.lastAt ? (
-                  <div className="text-[10px] text-slate-400">
-                    {new Date(c.lastAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                  </div>
-                ) : (
-                  <div className="text-[10px] text-slate-400">—</div>
-                )}
-                {c.count > 0 && (
-                  <div className="mt-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-slate-200 text-[10px]">
-                    {c.count}
+
+              <div className="text-right shrink-0 ml-3 flex items-end gap-2">
+                {/* time */}
+                <div className="text-[10px] text-slate-400">
+                  {c.lastAt
+                    ? new Date(c.lastAt).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : "—"}
+                </div>
+
+                {/* UNREAD badge only when > 0 */}
+                {c.unread > 0 && (
+                  <div className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-sky-600 text-white text-[10px] font-semibold">
+                    {c.unread > 99 ? "99+" : c.unread}
                   </div>
                 )}
               </div>
