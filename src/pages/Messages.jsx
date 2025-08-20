@@ -38,11 +38,14 @@ function ChatThreadScreen({
     const prev = {
       htmlOverflow: html.style.overflow,
       bodyOverflow: body.style.overflow,
+      htmlOverscroll: html.style.overscrollBehavior,
     };
     html.style.overflow = "hidden";
+    html.style.overscrollBehavior = "contain";
     body.style.overflow = "hidden";
     return () => {
       html.style.overflow = prev.htmlOverflow || "";
+      html.style.overscrollBehavior = prev.htmlOverscroll || "";
       body.style.overflow = prev.bodyOverflow || "";
       onActiveChange?.(false);
     };
@@ -58,13 +61,15 @@ function ChatThreadScreen({
       : "";
 
   return (
-    <div className="grid grid-rows-[auto_1fr_auto] h-[100svh] overflow-hidden">
-      {/* Top bar */}
-      <div className="px-4 py-2 flex items-center gap-2 border-b bg-white">
+    // Static top bar + composer; only middle column scrolls.
+    <div className="grid grid-rows-[auto_1fr_auto] h-[calc(100svh-4px)] overflow-hidden">
+      {/* Top bar: 50% transparent + background blur */}
+      <div className="px-4 py-2 flex items-center gap-2 border-b border-slate-200/60 bg-white/50 backdrop-blur-md z-10">
         <Button variant="ghost" size="icon" onClick={onBack}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <h3 className="font-semibold flex-1 truncate">{partnerName}</h3>
+
         {isVendorKnown && typeof onOpenVendor === "function" && (
           <Button
             variant="ghost"
@@ -76,6 +81,7 @@ function ChatThreadScreen({
             View store
           </Button>
         )}
+
         {isVendorKnown && phone && (
           <Button as="a" href={`tel:${phone}`} size="sm" className="inline-flex items-center gap-1">
             <Phone className="h-4 w-4" />
@@ -84,7 +90,7 @@ function ChatThreadScreen({
         )}
       </div>
 
-      {/* Scrollable bubbles */}
+      {/* Bubbles only: scrollable */}
       <div className="overflow-y-auto px-4 py-2 bg-transparent">
         {thread.length === 0 ? (
           <div className="text-slate-400 text-center mt-8">No messages yet.</div>
@@ -108,12 +114,13 @@ function ChatThreadScreen({
           })
         )}
         <div ref={endRef} />
+        <div className="h-2" />
       </div>
 
-      {/* Composer (input + send aligned) */}
+      {/* Composer (fixed, lifted a bit) */}
       <div
         className="px-4 py-2 bg-white border-t"
-        style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 4px)" }}
       >
         <div className="flex items-center gap-2">
           <Input
@@ -155,6 +162,7 @@ export default function Messages({
   onActiveThreadChange,
 }) {
   const vendorById = useMemo(() => Object.fromEntries(vendors.map((v) => [v.id, v])), [vendors]);
+
   const conversations = useMemo(() => {
     const items = Object.entries(threads).map(([partnerId, msgs]) => {
       const last = msgs[msgs.length - 1];
