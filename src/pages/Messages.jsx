@@ -65,7 +65,7 @@ function ChatThreadScreen({
     // Use 100dvh so the URL bar/show-hide on mobile doesn't clip the top.
     <div className="grid grid-rows-[auto_1fr_auto] h-[100dvh] overflow-hidden">
       {/* Thread header (static) */}
-      <div className="px-4 py-2 flex items-center gap-2 border-b bg-[#DFFDFF] backdrop-blur-xl">
+      <div className="px-4 py-2 flex items-center gap-2 bg-[#DFFDFF] backdrop-blur-xl">
         <Button variant="ghost" size="icon" onClick={onBack}>
           <ArrowLeft className="h-5 w-5 text-black" />
         </Button>
