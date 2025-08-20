@@ -25,7 +25,7 @@ function ChatThreadScreen({
   onSend,
   onBack,
   resolvePhone,
-  onActiveChange, // NEW: tell App when a thread is open/closed
+  onActiveChange, // tell App when a thread is open/closed
 }) {
   const [text, setText] = useState("");
   const endRef = useRef(null);
@@ -46,7 +46,7 @@ function ChatThreadScreen({
 
   return (
     // Static top bar + composer; only middle column scrolls.
-    <div className="grid grid-rows-[auto_1fr_auto] h-[100svh] overflow-hidden">
+    <div className="grid grid-rows-[auto_1fr_auto] h-[calc(100svh-4px)] overflow-hidden">
       {/* Top bar (static) */}
       <div className="px-4 py-2 flex items-center gap-2 border-b bg-white">
         <Button variant="ghost" size="icon" onClick={onBack}>
@@ -104,7 +104,7 @@ function ChatThreadScreen({
       {/* Composer (static, not scrollable with bubbles) */}
       <div
         className="px-4 py-2 bg-white border-t"
-        style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 4px)" }}
       >
         <div className="flex items-center gap-2">
           <Input
@@ -143,7 +143,7 @@ export default function Messages({
   onSend,
   onOpenVendor,
   resolvePhone,
-  onActiveThreadChange, // NEW from App
+  onActiveThreadChange,
 }) {
   const vendorById = useMemo(() => Object.fromEntries(vendors.map((v) => [v.id, v])), [vendors]);
 
