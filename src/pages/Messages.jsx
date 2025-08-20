@@ -30,9 +30,28 @@ function ChatThreadScreen({
   const [text, setText] = useState("");
   const endRef = useRef(null);
 
+  // Lock the whole page from scrolling while a thread is open
   useEffect(() => {
-    onActiveChange?.(true);            // thread mounted
-    return () => onActiveChange?.(false); // thread unmounted
+    onActiveChange?.(true);
+
+    const html = document.documentElement;
+    const body = document.body;
+    const prev = {
+      htmlOverflow: html.style.overflow,
+      bodyOverflow: body.style.overflow,
+      htmlOverscroll: html.style.overscrollBehavior,
+    };
+
+    html.style.overflow = "hidden";
+    html.style.overscrollBehavior = "contain"; // avoid background bounce/refresh
+    body.style.overflow = "hidden";
+
+    return () => {
+      html.style.overflow = prev.htmlOverflow || "";
+      html.style.overscrollBehavior = prev.htmlOverscroll || "";
+      body.style.overflow = prev.bodyOverflow || "";
+      onActiveChange?.(false);
+    };
   }, [onActiveChange]);
 
   useEffect(() => {
@@ -119,6 +138,8 @@ function ChatThreadScreen({
               }
             }}
           />
+        </div>
+        <div className="mt-2 flex justify-end">
           <Button
             type="button"
             className="rounded-2xl"
