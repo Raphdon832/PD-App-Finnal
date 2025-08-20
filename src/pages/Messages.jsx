@@ -61,10 +61,9 @@ function ChatThreadScreen({
       : "";
 
   return (
-    // Static top bar + composer; only middle column scrolls.
     <div className="grid grid-rows-[auto_1fr_auto] h-[calc(100svh-4px)] overflow-hidden">
-      {/* Top bar: 50% transparent + background blur */}
-      <div className="px-4 py-2 flex items-center gap-2 border-b border-slate-200/60 bg-white/50 backdrop-blur-md z-10">
+      {/* Top bar: 90% transparent + background blur */}
+      <div className="px-4 py-2 flex items-center gap-2 border-b border-slate-200/60 bg-white/90 backdrop-blur-md z-10">
         <Button variant="ghost" size="icon" onClick={onBack}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
@@ -90,7 +89,7 @@ function ChatThreadScreen({
         )}
       </div>
 
-      {/* Bubbles only: scrollable */}
+      {/* Messages area (scrollable) */}
       <div className="overflow-y-auto px-4 py-2 bg-transparent">
         {thread.length === 0 ? (
           <div className="text-slate-400 text-center mt-8">No messages yet.</div>
@@ -117,7 +116,7 @@ function ChatThreadScreen({
         <div className="h-2" />
       </div>
 
-      {/* Composer (fixed, lifted a bit) */}
+      {/* Composer (static, lifted slightly) */}
       <div
         className="px-4 py-2 bg-white border-t"
         style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 4px)" }}
