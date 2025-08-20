@@ -201,7 +201,7 @@ export default function Messages({
 
   return (
     <div className="h-[70vh]">
-      <h3 className="font-semibold mb-3">Conversations</h3>
+      <h2 className="text-xl font-bold tracking-wide mb-3 uppercase">Conversations</h2>
       <div className="space-y-2 overflow-y-auto pr-1" style={{ maxHeight: "calc(70vh - 2rem)" }}>
         {conversations.map((c) => (
           <Card key={c.partnerId} className="cursor-pointer" onClick={() => setActivePartnerId(c.partnerId)}>
