@@ -565,6 +565,7 @@ export default function App() {
             return v?.contact ? normalizePhone(v.contact) : "";
           }}
           onActiveThreadChange={(active) => setHideNavForChatThread(Boolean(active))}
+          lastSeenAt={state.lastMessagesSeenAt}   // NEW: let Messages compute unread counts
         />
       ),
     vendorDashboard: (
