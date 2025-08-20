@@ -234,8 +234,7 @@ export default function App() {
     if (!key) return;
     const v = Number(localStorage.getItem(key) || 0);
     setState((s) => ({ ...s, lastMessagesSeenAt: v }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [me?.role, myVendor?.id]);
+  }, [me?.role, myVendor?.id]); // 
 
   const _setLastMessagesSeenNow = React.useCallback(() => {
     const key = seenKeyFor(me, state.vendors);
@@ -243,13 +242,13 @@ export default function App() {
     const now = Date.now();
     localStorage.setItem(key, String(now));
     setState((s) => ({ ...s, lastMessagesSeenAt: now }));
-  }, [me, state.vendors]);
+  }, [me, state.vendors]); // 
 
   const go = (screen, screenParams = {}) => {
     if (screen === "messages") _setLastMessagesSeenNow();
     if (screen !== "messages") setHideNavForChatThread(false);
     setState((s) => ({ ...s, screen, screenParams }));
-  };
+  }; // 
 
   const toast = (msg, type = "info") => {
     const id = uid();
@@ -276,11 +275,15 @@ export default function App() {
       if (p) return vendorById(p.vendorId);
     }
     if (!state.userLoc) return null;
-    let best = null, bestD = Infinity;
+    let best = null,
+      bestD = Infinity;
     for (const v of state.vendors) {
       if (typeof v.lat !== "number" || typeof v.lng !== "number") continue;
       const d = haversineKm(state.userLoc, { lat: v.lat, lng: v.lng });
-      if (d != null && d < bestD) { best = v; bestD = d; }
+      if (d != null && d < bestD) {
+        best = v;
+        bestD = d;
+      }
     }
     return best;
   }, [state.screen, state.screenParams, state.vendors, state.userLoc]);
@@ -352,7 +355,14 @@ export default function App() {
       const list = asArray(state.conversations);
       let conv = list.find((c) => c.vendorId === vendorId && c.customerId === customerId);
       if (!conv) {
-        conv = { id: uid(), vendorId, customerId, customerName: customerName || undefined, lastAt: Date.now(), messages: [] };
+        conv = {
+          id: uid(),
+          vendorId,
+          customerId,
+          customerName: customerName || undefined,
+          lastAt: Date.now(),
+          messages: [],
+        };
         setState((s) => ({ ...s, conversations: [conv, ...asArray(s.conversations)] }));
       } else if (customerName && !conv.customerName) {
         const next = list.map((c) => (c === conv ? { ...c, customerName } : c));
@@ -361,30 +371,48 @@ export default function App() {
       return conv;
     },
     [state.conversations]
-  );
+  ); // 
 
+  // NOW accepts { text, attachments }
   const sendConversationMessage = React.useCallback(
-    (vendorId, customerId, text, fromRole, customerNameOpt) => {
-      if (!vendorId || !customerId || !text?.trim()) return;
+    (vendorId, customerId, payload, fromRole, customerNameOpt) => {
+      const text = payload?.text || "";
+      const attachments = Array.isArray(payload?.attachments) ? payload.attachments : [];
+      if (!vendorId || !customerId) return;
+      if (!text.trim() && attachments.length === 0) return;
+
       setState((s) => {
         const list = asArray(s.conversations);
         const idx = list.findIndex((c) => c.vendorId === vendorId && c.customerId === customerId);
         const nowIso = new Date().toISOString();
-        const newMsg = { id: uid(), from: fromRole, text, at: nowIso };
+        const newMsg = { id: uid(), from: fromRole, text: text.trim(), at: nowIso, attachments };
 
         if (idx === -1) {
-          const conv = { id: uid(), vendorId, customerId, customerName: customerNameOpt || undefined, lastAt: Date.now(), messages: [newMsg] };
+          const conv = {
+            id: uid(),
+            vendorId,
+            customerId,
+            customerName: customerNameOpt || undefined,
+            lastAt: Date.now(),
+            messages: [newMsg],
+          };
           return { ...s, conversations: [conv, ...list] };
         } else {
           const conv = list[idx];
-          const updated = { ...conv, customerName: conv.customerName || customerNameOpt || undefined, lastAt: Date.now(), messages: [...asArray(conv.messages), newMsg] };
-          const next = [...list]; next[idx] = updated;
+          const updated = {
+            ...conv,
+            customerName: conv.customerName || customerNameOpt || undefined,
+            lastAt: Date.now(),
+            messages: [...asArray(conv.messages), newMsg],
+          };
+          const next = [...list];
+          next[idx] = updated;
           return { ...s, conversations: next };
         }
       });
     },
     []
-  );
+  ); // 
 
   const startChatWithVendor = (vendorId, initialText) => {
     const customerId = getCustomerId(me);
@@ -392,24 +420,25 @@ export default function App() {
     const custName =
       me?.name || me?.fullName || me?.displayName || me?.email || `Customer U_${String(customerId).slice(0, 4).toUpperCase()}`;
     if (initialText) {
-      sendConversationMessage(vendorId, customerId, initialText, "customer", custName);
+      sendConversationMessage(vendorId, customerId, { text: initialText }, "customer", custName);
     } else {
       getOrCreateConversation(vendorId, customerId, custName);
     }
     go("messages");
   };
 
-  const onSendFromMessages = (partnerId, text) => {
+  // onSend now forwards both text + attachments
+  const onSendFromMessages = (partnerId, text, attachments) => {
     if (!me) return;
     if (me.role === "customer") {
       const customerId = getCustomerId(me);
       const custName =
         me?.name || me?.fullName || me?.displayName || me?.email || `Customer U_${String(customerId).slice(0, 4).toUpperCase()}`;
-      sendConversationMessage(partnerId, customerId, text, "customer", custName);
+      sendConversationMessage(partnerId, customerId, { text, attachments }, "customer", custName);
     } else if (me.role === "pharmacist" && myVendor?.id) {
-      sendConversationMessage(myVendor.id, partnerId, text, "vendor");
+      sendConversationMessage(myVendor.id, partnerId, { text, attachments }, "vendor");
     }
-  };
+  }; // 
 
   /* --------------------- counts + derived inbox threads --------------------- */
   const cartCount = state.cart.reduce((sum, ci) => sum + ci.qty, 0);
@@ -434,9 +463,9 @@ export default function App() {
       }
     }
     return total;
-  }, [conversationsSafe, state.lastMessagesSeenAt, me, state.vendors]);
+  }, [conversationsSafe, state.lastMessagesSeenAt, me, state.vendors]); // 
 
-  // Build threads map for Messages page
+  // include attachments in thread map so UI can render them
   const inboxThreads = React.useMemo(() => {
     const map = {};
     for (const c of conversationsSafe) {
@@ -444,18 +473,32 @@ export default function App() {
         if (c.customerId !== getCustomerId(me)) continue;
         const key = c.vendorId;
         const arr = map[key] || [];
-        for (const m of asArray(c.messages)) arr.push({ id: m.id, from: m.from === "customer" ? "me" : "them", text: m.text, at: m.at });
+        for (const m of asArray(c.messages))
+          arr.push({
+            id: m.id,
+            from: m.from === "customer" ? "me" : "them",
+            text: m.text,
+            at: m.at,
+            attachments: m.attachments || [],
+          });
         map[key] = arr;
       } else if (me?.role === "pharmacist" && myVendor?.id) {
         if (c.vendorId !== myVendor.id) continue;
         const key = c.customerId;
         const arr = map[key] || [];
-        for (const m of asArray(c.messages)) arr.push({ id: m.id, from: m.from === "vendor" ? "me" : "them", text: m.text, at: m.at });
+        for (const m of asArray(c.messages))
+          arr.push({
+            id: m.id,
+            from: m.from === "vendor" ? "me" : "them",
+            text: m.text,
+            at: m.at,
+            attachments: m.attachments || [],
+          });
         map[key] = arr;
       }
     }
     return map;
-  }, [conversationsSafe, me, myVendor?.id]);
+  }, [conversationsSafe, me, myVendor?.id]); // 
 
   const vendorsForMessages = React.useMemo(() => {
     if (me?.role !== "pharmacist" || !myVendor?.id) return state.vendors;
@@ -559,13 +602,13 @@ export default function App() {
           vendors={vendorsForMessages}
           threads={inboxThreads || {}}
           onOpenVendor={me?.role === "pharmacist" ? undefined : (id) => go("vendorProfile", { id })}
-          onSend={(partnerId, text) => onSendFromMessages(partnerId, text)}
+          onSend={(partnerId, text, attachments) => onSendFromMessages(partnerId, text, attachments)}
           resolvePhone={(partnerId) => {
             const v = vendorById(partnerId);
             return v?.contact ? normalizePhone(v.contact) : "";
           }}
           onActiveThreadChange={(active) => setHideNavForChatThread(Boolean(active))}
-          lastSeenAt={state.lastMessagesSeenAt}   // NEW: let Messages compute unread counts
+          lastSeenAt={state.lastMessagesSeenAt}
         />
       ),
     vendorDashboard: (
