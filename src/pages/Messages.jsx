@@ -30,7 +30,7 @@ function ChatThreadScreen({
   const [text, setText] = useState("");
   const endRef = useRef(null);
 
-  // Lock page scroll while thread is open
+  // Lock the page scroll while thread is open
   useEffect(() => {
     onActiveChange?.(true);
     const html = document.documentElement;
@@ -61,9 +61,13 @@ function ChatThreadScreen({
       : "";
 
   return (
+    // Static header + static composer; only middle column scrolls
     <div className="grid grid-rows-[auto_1fr_auto] h-[calc(100svh-4px)] overflow-hidden">
-      {/* Top bar: 90% transparent + background blur */}
-      <div className="px-4 py-2 flex items-center gap-2 border-b border-slate-200/60 bg-white/90 backdrop-blur-md z-10">
+      {/* Thread header — add safe-area top padding to avoid clipping */}
+      <div
+        className="px-4 py-2 flex items-center gap-2 border-b bg-white"
+        style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+      >
         <Button variant="ghost" size="icon" onClick={onBack}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
@@ -89,7 +93,7 @@ function ChatThreadScreen({
         )}
       </div>
 
-      {/* Messages area (scrollable) */}
+      {/* Bubbles only: scrollable */}
       <div className="overflow-y-auto px-4 py-2 bg-transparent">
         {thread.length === 0 ? (
           <div className="text-slate-400 text-center mt-8">No messages yet.</div>
@@ -113,10 +117,9 @@ function ChatThreadScreen({
           })
         )}
         <div ref={endRef} />
-        <div className="h-2" />
       </div>
 
-      {/* Composer (static, lifted slightly) */}
+      {/* Composer: inline input + send; lifted with safe-area bottom */}
       <div
         className="px-4 py-2 bg-white border-t"
         style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 4px)" }}
