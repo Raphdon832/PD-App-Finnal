@@ -1,7 +1,8 @@
 // src/App.jsx
-import React from "react";
+import React, { use } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MapPin, Timer, CheckCircle, AlertTriangle, Phone } from "lucide-react";
+
 
 import { Button } from "@/components/ui/button";
 import { loadFromLS, saveToLS, uid } from "@/lib/utils";
@@ -74,36 +75,7 @@ import VendorDashboard from "@/pages/VendorDashboard";
 import VendorProfile from "@/pages/VendorProfile";
 import Profile from "@/pages/Profile";
 
-import { useEffect } from "react";
 
-function useDisableIOSZoom() {
-  useEffect(() => {
-    const isIOS = /iP(ad|hone|od)/.test(navigator.userAgent);
-    if (!isIOS) return;
-
-    // prevent pinch zoom
-    const stopGesture = (e) => e.preventDefault();
-    document.addEventListener("gesturestart", stopGesture, { passive: false });
-    document.addEventListener("gesturechange", stopGesture, { passive: false });
-    document.addEventListener("gestureend",   stopGesture, { passive: false });
-
-    // prevent double‑tap zoom
-    let lastTouchEnd = 0;
-    const onTouchEnd = (e) => {
-      const now = Date.now();
-      if (now - lastTouchEnd <= 300) e.preventDefault();
-      lastTouchEnd = now;
-    };
-    document.addEventListener("touchend", onTouchEnd, { passive: false });
-
-    return () => {
-      document.removeEventListener("gesturestart", stopGesture);
-      document.removeEventListener("gesturechange", stopGesture);
-      document.removeEventListener("gestureend",   stopGesture);
-      document.removeEventListener("touchend", onTouchEnd);
-    };
-  }, []);
-}
 
 const toRad = (d) => (d * Math.PI) / 180;
 function haversineKm(a, b) {
@@ -187,9 +159,43 @@ const seenKeyFor = (me, vendors) => {
 };
 const normalizePhone = (s) => String(s || "").replace(/[^\d+]/g, "");
 
+import { useEffect } from "react";
+
+
+function useDisableIOSZoom() {
+  useEffect(() => {
+    const isIOS = /iP(ad|hone|od)/.test(navigator.userAgent);
+    if (!isIOS) return;
+
+    // prevent pinch zoom
+    const stopGesture = (e) => e.preventDefault();
+    document.addEventListener("gesturestart", stopGesture, { passive: false });
+    document.addEventListener("gesturechange", stopGesture, { passive: false });
+    document.addEventListener("gestureend",   stopGesture, { passive: false });
+
+    // prevent double‑tap zoom
+    let lastTouchEnd = 0;
+    const onTouchEnd = (e) => {
+      const now = Date.now();
+      if (now - lastTouchEnd <= 300) e.preventDefault();
+      lastTouchEnd = now;
+    };
+    document.addEventListener("touchend", onTouchEnd, { passive: false });
+
+    return () => {
+      document.removeEventListener("gesturestart", stopGesture);
+      document.removeEventListener("gesturechange", stopGesture);
+      document.removeEventListener("gestureend",   stopGesture);
+      document.removeEventListener("touchend", onTouchEnd);
+    };
+  }, []);
+}
+
+
 /* --------------------------------------------------------------- */
 
 export default function App() {
+  useDisableIOSZoom();
   const [state, setState] = React.useState(() =>
     loadFromLS("PD_STATE", {
       screen: "landing",
