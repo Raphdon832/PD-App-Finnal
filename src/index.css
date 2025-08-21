@@ -21,6 +21,14 @@ body {
   color: #111827;
 }
 
+/* Allow panning bbbut prevent double-tap zoom on iOS*/
+html, body {
+  touch-action: manipulation}
+  /* Make sure clickable elements don't trigger double-tap zoom */
+  a, button, input, textarea {
+    touch-action: manipulation;
+  }
+
 /* Links & buttons (fallback defaults; Tailwind classes will override) */
 a { text-decoration: none; }
 button { font-family: inherit; }
