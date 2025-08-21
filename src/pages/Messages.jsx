@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { MessageSquare, ArrowLeft, Store, Phone, Paperclip, X } from "lucide-react";
+import SendIconRaw from "@/assets/icons/Send Button.svg?raw";
 
 function isSameDay(a, b) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
@@ -14,6 +15,13 @@ function dayLabel(d) {
   if (isSameDay(d, yest)) return "Yesterday";
   return d.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" });
 }
+
+const SendIcon=()=>(
+  <span
+  className="h-5 w-5"
+  dangerouslySetInnerHTML={{ __html: SendIconRaw }}
+  />
+);
 
 function EmptyState({ title, body }) {
   return (
@@ -227,8 +235,19 @@ function ChatThreadScreen({
           />
 
           {/* Send */}
-          <Button type="button" className="rounded-2xl" onClick={sendNow}>
-            Send
+          <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="rounded-full p-2 hover:bg-transparent"
+          onClick={()=>{
+            if (text.trim()) {
+              onSend(partnnerId, text.trim());
+              setText("");
+            }
+          }}
+          >
+            <SendIcon/>
           </Button>
         </div>
       </div>
