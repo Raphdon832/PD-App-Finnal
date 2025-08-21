@@ -16,11 +16,8 @@ function dayLabel(d) {
   return d.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" });
 }
 
-const SendIcon=()=>(
-  <span
-  className="h-5 w-5"
-  dangerouslySetInnerHTML={{ __html: SendIconRaw }}
-  />
+const SendIcon = () => (
+  <span className="h-5 w-5" aria-hidden="true" dangerouslySetInnerHTML={{ __html: SendIconRaw }} />
 );
 
 function EmptyState({ title, body }) {
@@ -57,12 +54,25 @@ function ChatThreadScreen({
     const html = document.documentElement, body = document.body;
     const prev = { htmlOverflow: html.style.overflow, bodyOverflow: body.style.overflow, htmlOverscroll: html.style.overscrollBehavior };
     html.style.overflow = "hidden"; html.style.overscrollBehavior = "contain"; body.style.overflow = "hidden";
-    return () => { html.style.overflow = prev.htmlOverflow || ""; html.style.overscrollBehavior = prev.htmlOverscroll || ""; body.style.overflow = prev.bodyOverflow || ""; onActiveChange?.(false); };
+    return () => {
+      html.style.overflow = prev.htmlOverflow || "";
+      html.style.overscrollBehavior = prev.htmlOverscroll || "";
+      body.style.overflow = prev.bodyOverflow || "";
+      onActiveChange?.(false);
+    };
   }, [onActiveChange]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [thread.length]);
+
+  // Revoke object URLs to avoid memory leaks
+  useEffect(() => {
+    return () => {
+      files.forEach((f) => URL.revokeObjectURL(f.url));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const phone = isVendorKnown && typeof resolvePhone === "function" ? resolvePhone(partnerId) : "";
 
@@ -73,23 +83,37 @@ function ChatThreadScreen({
     const next = list.map((f) => {
       const isImg = f.type.startsWith("image/");
       const url = URL.createObjectURL(f);
-      return { id: `${Date.now()}_${f.name}_${Math.random().toString(36).slice(2)}`, file: f, url, name: f.name, type: f.type, size: f.size, kind: isImg ? "image" : "file" };
+      return {
+        id: `${Date.now()}_${f.name}_${Math.random().toString(36).slice(2)}`,
+        file: f,
+        url,
+        name: f.name,
+        type: f.type,
+        size: f.size,
+        kind: isImg ? "image" : "file",
+      };
     });
     setFiles((prev) => [...prev, ...next]);
     e.target.value = ""; // allow picking same file again
   };
-  const removeFile = (id) => setFiles((prev) => prev.filter((x) => x.id !== id));
+  const removeFile = (id) =>
+    setFiles((prev) => {
+      const f = prev.find((x) => x.id === id);
+      if (f) URL.revokeObjectURL(f.url);
+      return prev.filter((x) => x.id !== id);
+    });
 
   const sendNow = () => {
     const trimmed = text.trim();
     if (!trimmed && files.length === 0) return;
-    // Minimal metadata to store; object URLs are fine for prototype/local
     const atts = files.map((a) => ({ name: a.name, type: a.type, size: a.size, url: a.url, kind: a.kind }));
     onSend(partnerId, trimmed, atts);
     setText("");
     setFiles([]);
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   };
+
+  const canSend = text.trim().length > 0 || files.length > 0;
 
   return (
     <div className="grid grid-rows-[auto_1fr_auto] h-[100dvh] overflow-hidden">
@@ -139,22 +163,38 @@ function ChatThreadScreen({
 
                 <div className={`mb-3 flex ${mine ? "justify-end" : "justify-start"}`}>
                   <div className="max-w-[80%]">
-                    {/* Bubble */}
-                    <div className={`px-3 py-2 text-sm leading-snug break-words shadow ${
-    mine
-      ? "bg-[#000000] text-white rounded-lg rounded-br-none"  // mine
-      : "bg-white text-black rounded-lg rounded-bl-none"      // theirs
-  }`}>
+                    {/* Bubble (WhatsApp-like) */}
+                    <div
+                      className={`px-3 py-2 text-sm leading-snug break-words shadow ${
+                        mine
+                          ? "bg-[#000000] text-white rounded-lg rounded-br-none" // mine: light green, right "tail"
+                          : "bg-gray text-black rounded-lg rounded-bl-none"    // theirs: white, left "tail"
+                      }`}
+                    >
                       {/* Attachments (if any) */}
                       {Array.isArray(msg.attachments) && msg.attachments.length > 0 && (
-                        <div className={`mb-2 grid gap-2 ${msg.attachments.filter(a=>a.kind==="image").length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
+                        <div
+                          className={`mb-2 grid gap-2 ${
+                            msg.attachments.filter((a) => a.kind === "image").length > 1
+                              ? "grid-cols-2"
+                              : "grid-cols-1"
+                          }`}
+                        >
                           {msg.attachments.map((a, idx) =>
                             a.kind === "image" ? (
                               <a key={idx} href={a.url} target="_blank" rel="noreferrer">
                                 <img src={a.url} alt={a.name || "image"} className="w-full h-40 object-cover rounded-xl" />
                               </a>
                             ) : (
-                              <a key={idx} href={a.url} target="_blank" rel="noreferrer" className={`px-3 py-2 rounded-lg text-xs ${mine ? "bg-white/20 text-white" : "bg-white text-slate-700"}`}>
+                              <a
+                                key={idx}
+                                href={a.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className={`px-3 py-2 rounded-lg text-xs ${
+                                  mine ? "bg-white/70 text-slate-800" : "bg-slate-100 text-slate-700"
+                                }`}
+                              >
                                 {a.name || "attachment"}
                               </a>
                             )
@@ -230,24 +270,25 @@ function ChatThreadScreen({
             onChange={(e) => setText(e.target.value)}
             placeholder="Message"
             onKeyDown={(e) => {
-              if (e.key === "Enter") sendNow();
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                sendNow();
+              }
             }}
           />
 
           {/* Send */}
           <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="rounded-full p-2 hover:bg-transparent"
-          onClick={()=>{
-            if (text.trim()) {
-              onSend(partnnerId, text.trim());
-              setText("");
-            }
-          }}
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="rounded-full p-2 hover:bg-transparent disabled:opacity-40"
+            onClick={sendNow}
+            disabled={!canSend}
+            aria-label="Send message"
+            title="Send"
           >
-            <SendIcon/>
+            <SendIcon />
           </Button>
         </div>
       </div>
