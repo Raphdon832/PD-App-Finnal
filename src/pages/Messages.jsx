@@ -193,15 +193,27 @@ function ChatThreadScreen({
         <h3 className="font-semibold flex-1 truncate text-black">{partnerName}</h3>
 
         {isVendorKnown && typeof onOpenVendor === "function" && (
-          <Button variant="ghost" size="sm" onClick={() => onOpenVendor(partnerId)} className="inline-flex items-center gap-1 text-black">
-            <Store className="h-4 w-4 text-black" />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onOpenVendor(partnerId)}
+            className="inline-flex items-center gap-1 text-black px-2 py-1 text-[11px] font-poppins"
+            style={{ minHeight: "28px", height: "28px" }}
+          >
+            <Store className="h-3 w-3 text-black" />
             View store
           </Button>
         )}
 
         {isVendorKnown && phone && (
-          <Button as="a" href={`tel:${phone}`} size="sm" className="inline-flex items-center gap-1 bg-blue text-white">
-            <Phone className="h-4 w-4" />
+          <Button
+            as="a"
+            href={`tel:${phone}`}
+            size="sm"
+            className="inline-flex items-center gap-1 bg-blue text-white px-2 py-1 text-[11px] font-poppins"
+            style={{ minHeight: "28px", height: "28px" }}
+          >
+            <Phone className="h-3 w-3" />
             Call to order
           </Button>
         )}
