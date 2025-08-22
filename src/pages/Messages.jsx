@@ -431,11 +431,11 @@ export default function Messages({
 
   return (
     <div className="h-[70vh]">
-      <h2 className="text-xl font-bold tracking-wide mb-3 uppercase">Conversations</h2>
+      <h2 className="text-[20px] font-black tracking-tight mb-3 font-poppins">Chats</h2>
       <div className="space-y-2 overflow-y-auto pr-1" style={{ maxHeight: "calc(70vh - 2rem)" }}>
         {conversations.map((c) => (
           <Card key={c.partnerId} className="cursor-pointer" onClick={() => setActivePartnerId(c.partnerId)}>
-            <CardContent className="p-3 flex items-center justify-between">
+            <CardContent className="p-3 flex items-center justify-between font-poppins">
               <div className="min-w-0">
                 <div className="font-medium text-sm truncate">{c.partnerName}</div>
                 <div className="text-xs text-slate-500 truncate">{c.lastPreview}</div>
