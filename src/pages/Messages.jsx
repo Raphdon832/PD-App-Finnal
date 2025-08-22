@@ -209,7 +209,7 @@ function ChatThreadScreen({
 
       {/* Messages area */}
       <div
-        className="overflow-y-auto overscroll-contain px-4 py-2 bg-cover bg-center font-poppins"
+        className="overflow-y-auto overscroll-contain px-4 py-2 bg-cover bg-center font-poppins text-[10px] size-sm"
         style={{ backgroundImage: "url('/Background-Watermark.png')" }}
         onTouchMove={onTouchMove}
       >
@@ -345,7 +345,7 @@ function ChatThreadScreen({
           />
 
           <Input
-            className="flex-1 rounded-2xl"
+            className="flex-1 rounded-2xl font-poppins text-[12px] size-sm"
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="Message"
