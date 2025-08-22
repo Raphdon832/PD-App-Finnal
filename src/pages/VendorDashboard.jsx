@@ -160,7 +160,17 @@ export default function VendorDashboard({
             <Textarea value={form.description} onChange={(e)=>setForm(v=>({...v, description:e.target.value}))} placeholder="Brief product description" />
           </div>
           <div className="md:col-span-2 flex flex-col sm:flex-row items-center gap-3">
-            <input type="file" accept="image/*" onChange={onPickImage} className="w-full sm:w-auto" />
+            <label className="w-full sm:w-auto">
+              <span className="block mb-1 text-blue-600 underline cursor-pointer text-sm font-poppins tracking-tighter">
+                Choose photo
+              </span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={onPickImage}
+                className="hidden"
+              />
+            </label>
             {form.image && <img src={form.image} alt="preview" className="h-16 w-16 object-cover rounded-md" />}
             <Button onClick={onSubmit} className="w-full sm:w-auto ml-auto">Add product</Button>
           </div>
