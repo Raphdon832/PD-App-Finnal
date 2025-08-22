@@ -727,16 +727,16 @@ export default function App() {
     <div className="min-h-screen bg-white text-slate-900">
       {showHeader && (
         <div className="sticky top-0 z-40 bg-white/70 backdrop-blur border-b border-slate-200">
-          <div className="mx-auto max-w-5xl px-4 py-3 flex items-center justify-between">
+          <div className="mx-auto max-w-5xl px-4 py-3 flex items-center justify-between font-poppins leading-none text-[10px]">
             <div className="flex items-center gap-2">
               <img src={pdLogo} alt="PD — Healthcare at your doorstep" className="h-7 w-auto select-none" />
             </div>
-            <div className="text-xs text-slate-700 flex items-center gap-3">
-              <span className="inline-flex items-center gap-1">
+            <div className="text-xs text-slate-700 flex items-center gap-3 font-poppins leading-none text-[10px]">
+              <span className="inline-flex items-center gap-1 font-poppins leading-none text-[10px]">
                 <MapPin className="h-4 w-4" />
                 {locText}
               </span>
-              <span className="inline-flex items-center gap-1">
+              <span className="inline-flex items-center gap-1 font-poppins leading-none text-[10px]">
                 <Timer className="h-4 w-4" />
                 {dynamicEta != null && targetVendor?.name ? `${dynamicEta} mins to ${targetVendor.name}` : etaLabel}
               </span>
