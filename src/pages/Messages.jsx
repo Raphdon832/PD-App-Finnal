@@ -61,67 +61,54 @@ function ChatThreadScreen({
   const fileInputRef = useRef(null);
   const endRef = useRef(null);
 
-  // gesture / swipe-to-reply
+  // ---- Swipe-to-reply (with iOS-safe inner wrapper) ----
   const [dragId, setDragId] = useState(null);
   const [dragX, setDragX] = useState(0);
   const dragStartRef = useRef({ x: 0, y: 0, active: false });
+  const SWIPE_TRIGGER = 56;
+  const SWIPE_MAX = 72;
+  const SWIPE_SLOPE = 0.6;
 
-  const SWIPE_TRIGGER = 56;  // px to trigger reply
-  const SWIPE_MAX = 72;      // max translate
-  const SWIPE_SLOPE = 0.6;   // ignore drags that are too vertical
-
-  const onTouchStart = (e, msg) => {
-    const t = e.touches?.[0];
-    if (!t) return;
-    dragStartRef.current = { x: t.clientX, y: t.clientY, active: true };
+  const beginDrag = (x, y, msg) => {
+    dragStartRef.current = { x, y, active: true };
     setDragId(msg.id);
     setDragX(0);
   };
-  const onTouchMove = (e) => {
+  const updateDrag = (x, y) => {
     if (!dragStartRef.current.active) return;
-    const t = e.touches?.[0];
-    if (!t) return;
-    const dx = t.clientX - dragStartRef.current.x;
-    const dy = Math.abs(t.clientY - dragStartRef.current.y);
+    const dx = x - dragStartRef.current.x;
+    const dy = Math.abs(y - dragStartRef.current.y);
     if (dx < 0 || dy > Math.abs(dx) * SWIPE_SLOPE) {
-      // only consider right-swipe and mostly horizontal
       setDragX(0);
       return;
     }
     setDragX(Math.min(dx, SWIPE_MAX));
   };
-  const onTouchEnd = (msg) => {
+  const endDrag = (msg) => {
     if (!dragStartRef.current.active) return;
     dragStartRef.current.active = false;
-    if (dragX >= SWIPE_TRIGGER) {
-      setReplyingTo({ id: msg.id, text: msg.text, from: msg.from, at: msg.at });
-    }
+    const shouldReply = dragX >= SWIPE_TRIGGER;
+    // reset transform fully before state update (iOS layout quirk)
     setDragId(null);
     setDragX(0);
+    if (shouldReply) setReplyingTo({ id: msg.id, text: msg.text, from: msg.from, at: msg.at });
   };
 
-  // Desktop mouse drag (optional)
+  const onTouchStart = (e, msg) => {
+    const t = e.touches?.[0]; if (!t) return;
+    beginDrag(t.clientX, t.clientY, msg);
+  };
+  const onTouchMove = (e) => {
+    const t = e.touches?.[0]; if (!t) return;
+    updateDrag(t.clientX, t.clientY);
+  };
+  const onTouchEnd = (msg) => endDrag(msg);
+
   const onMouseDown = (e, msg) => {
-    dragStartRef.current = { x: e.clientX, y: e.clientY, active: true };
-    setDragId(msg.id);
-    setDragX(0);
-    const move = (ev) => {
-      if (!dragStartRef.current.active) return;
-      const dx = ev.clientX - dragStartRef.current.x;
-      const dy = Math.abs(ev.clientY - dragStartRef.current.y);
-      if (dx < 0 || dy > Math.abs(dx) * SWIPE_SLOPE) {
-        setDragX(0);
-        return;
-      }
-      setDragX(Math.min(dx, SWIPE_MAX));
-    };
+    beginDrag(e.clientX, e.clientY, msg);
+    const move = (ev) => updateDrag(ev.clientX, ev.clientY);
     const up = () => {
-      if (dragX >= SWIPE_TRIGGER) {
-        setReplyingTo({ id: msg.id, text: msg.text, from: msg.from, at: msg.at });
-      }
-      dragStartRef.current.active = false;
-      setDragId(null);
-      setDragX(0);
+      endDrag(msg);
       window.removeEventListener("mousemove", move);
       window.removeEventListener("mouseup", up);
     };
@@ -147,7 +134,6 @@ function ChatThreadScreen({
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [thread.length]);
 
-  // Revoke object URLs to avoid memory leaks
   useEffect(() => {
     return () => {
       files.forEach((f) => URL.revokeObjectURL(f.url));
@@ -188,7 +174,6 @@ function ChatThreadScreen({
     const trimmed = text.trim();
     if (!trimmed && files.length === 0) return;
     const atts = files.map((a) => ({ name: a.name, type: a.type, size: a.size, url: a.url, kind: a.kind }));
-    // include replyTo metadata if present
     onSend(partnerId, trimmed, atts, replyingTo ? { id: replyingTo.id, text: replyingTo.text, from: replyingTo.from, at: replyingTo.at } : null);
     setText("");
     setFiles([]);
@@ -249,50 +234,55 @@ function ChatThreadScreen({
                 )}
 
                 <div className={`mb-3 flex ${mine ? "justify-end" : "justify-start"}`}>
-                  <div
-                    className="max-w-[80%] relative"
-                    onTouchStart={(e) => onTouchStart(e, msg)}
-                    onTouchEnd={() => onTouchEnd(msg)}
-                    onMouseDown={(e) => onMouseDown(e, msg)}
-                    style={{ transform: `translateX(${translate}px)`, transition: isDragging ? "none" : "transform 120ms ease-out" }}
-                  >
-                    {/* Swipe indicator (appears while dragging) */}
-                    {isDragging && translate > 12 && (
-                      <div className="absolute -left-7 top-1/2 -translate-y-1/2 rounded-full w-6 h-6 bg-slate-800/80 text-white flex items-center justify-center">
-                        ↩
-                      </div>
-                    )}
-
-                    {/* Bubble with optional quote */}
-                    <div className={`px-3 py-2 text-sm leading-snug break-words shadow ${mine ? "bg-[#000000] text-white rounded-lg rounded-br-none" : "bg-white text-black rounded-lg rounded-bl-none"}`}>
-                      <QuotedMini q={msg.replyTo} />
-
-                      {/* Attachments */}
-                      {Array.isArray(msg.attachments) && msg.attachments.length > 0 && (
-                        <div className={`mb-2 grid gap-2 ${msg.attachments.filter((a) => a.kind === "image").length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
-                          {msg.attachments.map((a, idx) =>
-                            a.kind === "image" ? (
-                              <a key={idx} href={a.url} target="_blank" rel="noreferrer">
-                                <img src={a.url} alt={a.name || "image"} className="w-full h-40 object-cover rounded-xl" />
-                              </a>
-                            ) : (
-                              <a key={idx} href={a.url} target="_blank" rel="noreferrer" className={`px-3 py-2 rounded-lg text-xs ${mine ? "bg-white/20 text-white" : "bg-slate-100 text-slate-700"}`}>
-                                {a.name || "attachment"}
-                              </a>
-                            )
-                          )}
+                  {/* Keep THIS flex child static. We only transform the inner .drag-wrap below */}
+                  <div className="max-w-[80%] min-w-0">
+                    <div
+                      className="relative drag-wrap transform-gpu will-change-transform select-none"
+                      onTouchStart={(e) => onTouchStart(e, msg)}
+                      onTouchEnd={() => onTouchEnd(msg)}
+                      onMouseDown={(e) => onMouseDown(e, msg)}
+                      style={{
+                        WebkitTransform: `translate3d(${translate}px,0,0)`,
+                        transform: `translate3d(${translate}px,0,0)`,
+                        transition: isDragging ? "none" : "transform 120ms ease-out",
+                      }}
+                    >
+                      {/* Swipe indicator */}
+                      {isDragging && translate > 12 && (
+                        <div className="absolute -left-7 top-1/2 -translate-y-1/2 rounded-full w-6 h-6 bg-slate-800/80 text-white flex items-center justify-center">
+                          ↩
                         </div>
                       )}
 
-                      {msg.text}
-                    </div>
+                      {/* Bubble */}
+                      <div className={`px-3 py-2 text-sm leading-snug break-words shadow ${mine ? "bg-[#000000] text-white rounded-lg rounded-br-none" : "bg-white text-black rounded-lg rounded-bl-none"}`}>
+                        <QuotedMini q={msg.replyTo} />
 
-                    {/* Time */}
-                    {msg.at && (
-                      <div className={`mt-1 text-[10px] text-slate-400 ${mine ? "text-right" : "text-left"}`}>
-                        {new Date(msg.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        {Array.isArray(msg.attachments) && msg.attachments.length > 0 && (
+                          <div className={`mb-2 grid gap-2 ${msg.attachments.filter((a) => a.kind === "image").length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
+                            {msg.attachments.map((a, idx) =>
+                              a.kind === "image" ? (
+                                <a key={idx} href={a.url} target="_blank" rel="noreferrer">
+                                  <img src={a.url} alt={a.name || "image"} className="w-full h-40 object-cover rounded-xl" />
+                                </a>
+                              ) : (
+                                <a key={idx} href={a.url} target="_blank" rel="noreferrer" className={`px-3 py-2 rounded-lg text-xs ${mine ? "bg-white/20 text-white" : "bg-slate-100 text-slate-700"}`}>
+                                  {a.name || "attachment"}
+                                </a>
+                              )
+                            )}
+                          </div>
+                        )}
+
+                        {msg.text}
                       </div>
-                    )}
+
+                      {msg.at && (
+                        <div className={`mt-1 text-[10px] text-slate-400 ${mine ? "text-right" : "text-left"}`}>
+                          {new Date(msg.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </React.Fragment>
@@ -307,7 +297,6 @@ function ChatThreadScreen({
         className="px-4 py-2 bg-white border-t border-[#F0F0F0]"
         style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 4px)" }}
       >
-        {/* Reply chip */}
         {replyingTo && (
           <div className="mb-2 flex items-center justify-between rounded-lg bg-slate-100 border pl-3 pr-2 py-2">
             <div className="min-w-0 text-xs">
@@ -320,18 +309,13 @@ function ChatThreadScreen({
           </div>
         )}
 
-        {/* Previews row (files) */}
         {files.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-2">
             {files.map((f) =>
               f.kind === "image" ? (
                 <div key={f.id} className="relative">
                   <img src={f.url} alt={f.name} className="h-16 w-16 object-cover rounded-xl border" />
-                  <button
-                    onClick={() => removeFile(f.id)}
-                    className="absolute -top-2 -right-2 bg-black/70 text-white rounded-full p-1"
-                    aria-label="Remove"
-                  >
+                  <button onClick={() => removeFile(f.id)} className="absolute -top-2 -right-2 bg-black/70 text-white rounded-full p-1" aria-label="Remove">
                     <X className="h-3 w-3" />
                   </button>
                 </div>
@@ -379,7 +363,7 @@ function ChatThreadScreen({
             size="icon"
             className="rounded-full p-2 hover:bg-transparent disabled:opacity-40"
             onClick={sendNow}
-            disabled={!text.trim() && files.length === 0}
+            disabled={!canSend}
             aria-label="Send message"
             title="Send"
           >
@@ -411,7 +395,6 @@ export default function Messages({
       const lastPreview =
         last?.text || (last?.attachments?.length ? `${last.attachments.length} attachment${last.attachments.length > 1 ? "s" : ""}` : "No messages yet");
 
-      // unread count (only messages from "them" after lastSeenAt)
       const unread = msgs.reduce((acc, m) => {
         const t = m.at ? new Date(m.at).getTime() : 0;
         return acc + (m.from === "them" && t > lastSeenAt ? 1 : 0);
