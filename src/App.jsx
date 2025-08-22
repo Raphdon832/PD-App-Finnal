@@ -1,8 +1,7 @@
 // src/App.jsx
-import React, { use } from "react";
+import React, { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MapPin, Timer, CheckCircle, AlertTriangle, Phone } from "lucide-react";
-
 
 import { Button } from "@/components/ui/button";
 import { loadFromLS, saveToLS, uid } from "@/lib/utils";
@@ -75,8 +74,6 @@ import VendorDashboard from "@/pages/VendorDashboard";
 import VendorProfile from "@/pages/VendorProfile";
 import Profile from "@/pages/Profile";
 
-
-
 const toRad = (d) => (d * Math.PI) / 180;
 function haversineKm(a, b) {
   if (!a || !b) return null;
@@ -143,7 +140,7 @@ async function reverseGeocode(lat, lng) {
   }
 }
 
-/* ------------------- identity + safety helpers ------------------- */
+/* ------------------- identity + helpers ------------------- */
 const asArray = (v) => (Array.isArray(v) ? v : []);
 const getVendorForPharm = (me, vendors) =>
   me?.role === "pharmacist"
@@ -159,21 +156,15 @@ const seenKeyFor = (me, vendors) => {
 };
 const normalizePhone = (s) => String(s || "").replace(/[^\d+]/g, "");
 
-import { useEffect } from "react";
-
-
+/* Prevent iOS zoom on inputs */
 function useDisableIOSZoom() {
   useEffect(() => {
     const isIOS = /iP(ad|hone|od)/.test(navigator.userAgent);
     if (!isIOS) return;
-
-    // prevent pinch zoom
     const stopGesture = (e) => e.preventDefault();
     document.addEventListener("gesturestart", stopGesture, { passive: false });
     document.addEventListener("gesturechange", stopGesture, { passive: false });
-    document.addEventListener("gestureend",   stopGesture, { passive: false });
-
-    // prevent double‑tap zoom
+    document.addEventListener("gestureend", stopGesture, { passive: false });
     let lastTouchEnd = 0;
     const onTouchEnd = (e) => {
       const now = Date.now();
@@ -181,18 +172,14 @@ function useDisableIOSZoom() {
       lastTouchEnd = now;
     };
     document.addEventListener("touchend", onTouchEnd, { passive: false });
-
     return () => {
       document.removeEventListener("gesturestart", stopGesture);
       document.removeEventListener("gesturechange", stopGesture);
-      document.removeEventListener("gestureend",   stopGesture);
+      document.removeEventListener("gestureend", stopGesture);
       document.removeEventListener("touchend", onTouchEnd);
     };
   }, []);
 }
-
-
-/* --------------------------------------------------------------- */
 
 export default function App() {
   useDisableIOSZoom();
@@ -213,21 +200,17 @@ export default function App() {
     })
   );
 
-  // While a chat THREAD is open, we hide header+bottom-nav and remove page padding/scroll.
   const [hideNavForChatThread, setHideNavForChatThread] = React.useState(false);
 
-  /* migration: ensure conversations array exists */
-  React.useEffect(() => {
+  useEffect(() => {
     setState((s) =>
       Array.isArray(s.conversations) ? s : { ...s, conversations: [] }
     );
   }, []);
 
-  /* persist */
-  React.useEffect(() => saveToLS("PD_STATE", state), [state]);
+  useEffect(() => saveToLS("PD_STATE", state), [state]);
 
-  /* geolocation */
-  React.useEffect(() => {
+  useEffect(() => {
     if (!("geolocation" in navigator)) return;
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -239,8 +222,7 @@ export default function App() {
     );
   }, []);
 
-  /* reverse geocode */
-  React.useEffect(() => {
+  useEffect(() => {
     let cancelled = false;
     async function run() {
       if (!state.userLoc) return;
@@ -259,19 +241,19 @@ export default function App() {
     [me, state.vendors]
   );
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!me) return;
     if (me.role === "customer" && !me.uid) {
       setState((s) => ({ ...s, me: { ...s.me, uid: s.me.id || uid() } }));
     }
   }, [me]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const key = seenKeyFor(me, state.vendors);
     if (!key) return;
     const v = Number(localStorage.getItem(key) || 0);
     setState((s) => ({ ...s, lastMessagesSeenAt: v }));
-  }, [me?.role, myVendor?.id]); // 
+  }, [me?.role, myVendor?.id]);
 
   const _setLastMessagesSeenNow = React.useCallback(() => {
     const key = seenKeyFor(me, state.vendors);
@@ -279,13 +261,13 @@ export default function App() {
     const now = Date.now();
     localStorage.setItem(key, String(now));
     setState((s) => ({ ...s, lastMessagesSeenAt: now }));
-  }, [me, state.vendors]); // 
+  }, [me, state.vendors]);
 
   const go = (screen, screenParams = {}) => {
     if (screen === "messages") _setLastMessagesSeenNow();
     if (screen !== "messages") setHideNavForChatThread(false);
     setState((s) => ({ ...s, screen, screenParams }));
-  }; // 
+  };
 
   const toast = (msg, type = "info") => {
     const id = uid();
@@ -312,14 +294,12 @@ export default function App() {
       if (p) return vendorById(p.vendorId);
     }
     if (!state.userLoc) return null;
-    let best = null,
-      bestD = Infinity;
+    let best = null, bestD = Infinity;
     for (const v of state.vendors) {
       if (typeof v.lat !== "number" || typeof v.lng !== "number") continue;
       const d = haversineKm(state.userLoc, { lat: v.lat, lng: v.lng });
       if (d != null && d < bestD) {
-        best = v;
-        bestD = d;
+        best = v; bestD = d;
       }
     }
     return best;
@@ -385,7 +365,7 @@ export default function App() {
   const removeProduct = (pid) =>
     setState((s) => ({ ...s, products: s.products.filter((p) => p.id !== pid) }));
 
-  /* -------------------------- Messaging (unique + names) -------------------------- */
+  /* -------------------------- Messaging -------------------------- */
   const getOrCreateConversation = React.useCallback(
     (vendorId, customerId, customerName) => {
       if (!vendorId || !customerId) return null;
@@ -408,13 +388,14 @@ export default function App() {
       return conv;
     },
     [state.conversations]
-  ); // 
+  );
 
-  // NOW accepts { text, attachments }
+  // Accepts { text, attachments, replyTo }
   const sendConversationMessage = React.useCallback(
     (vendorId, customerId, payload, fromRole, customerNameOpt) => {
       const text = payload?.text || "";
       const attachments = Array.isArray(payload?.attachments) ? payload.attachments : [];
+      const replyTo = payload?.replyTo || null;
       if (!vendorId || !customerId) return;
       if (!text.trim() && attachments.length === 0) return;
 
@@ -422,7 +403,7 @@ export default function App() {
         const list = asArray(s.conversations);
         const idx = list.findIndex((c) => c.vendorId === vendorId && c.customerId === customerId);
         const nowIso = new Date().toISOString();
-        const newMsg = { id: uid(), from: fromRole, text: text.trim(), at: nowIso, attachments };
+        const newMsg = { id: uid(), from: fromRole, text: text.trim(), at: nowIso, attachments, replyTo };
 
         if (idx === -1) {
           const conv = {
@@ -449,7 +430,7 @@ export default function App() {
       });
     },
     []
-  ); // 
+  );
 
   const startChatWithVendor = (vendorId, initialText) => {
     const customerId = getCustomerId(me);
@@ -464,18 +445,18 @@ export default function App() {
     go("messages");
   };
 
-  // onSend now forwards both text + attachments
-  const onSendFromMessages = (partnerId, text, attachments) => {
+  // onSend now forwards text + attachments + replyTo
+  const onSendFromMessages = (partnerId, text, attachments, replyTo) => {
     if (!me) return;
     if (me.role === "customer") {
       const customerId = getCustomerId(me);
       const custName =
         me?.name || me?.fullName || me?.displayName || me?.email || `Customer U_${String(customerId).slice(0, 4).toUpperCase()}`;
-      sendConversationMessage(partnerId, customerId, { text, attachments }, "customer", custName);
+      sendConversationMessage(partnerId, customerId, { text, attachments, replyTo }, "customer", custName);
     } else if (me.role === "pharmacist" && myVendor?.id) {
-      sendConversationMessage(myVendor.id, partnerId, { text, attachments }, "vendor");
+      sendConversationMessage(myVendor.id, partnerId, { text, attachments, replyTo }, "vendor");
     }
-  }; // 
+  };
 
   /* --------------------- counts + derived inbox threads --------------------- */
   const cartCount = state.cart.reduce((sum, ci) => sum + ci.qty, 0);
@@ -500,9 +481,9 @@ export default function App() {
       }
     }
     return total;
-  }, [conversationsSafe, state.lastMessagesSeenAt, me, state.vendors]); // 
+  }, [conversationsSafe, state.lastMessagesSeenAt, me, state.vendors]);
 
-  // include attachments in thread map so UI can render them
+  // Include replyTo + attachments in UI threads
   const inboxThreads = React.useMemo(() => {
     const map = {};
     for (const c of conversationsSafe) {
@@ -517,6 +498,7 @@ export default function App() {
             text: m.text,
             at: m.at,
             attachments: m.attachments || [],
+            replyTo: m.replyTo || null,
           });
         map[key] = arr;
       } else if (me?.role === "pharmacist" && myVendor?.id) {
@@ -530,12 +512,13 @@ export default function App() {
             text: m.text,
             at: m.at,
             attachments: m.attachments || [],
+            replyTo: m.replyTo || null,
           });
         map[key] = arr;
       }
     }
     return map;
-  }, [conversationsSafe, me, myVendor?.id]); // 
+  }, [conversationsSafe, me, myVendor?.id]);
 
   const vendorsForMessages = React.useMemo(() => {
     if (me?.role !== "pharmacist" || !myVendor?.id) return state.vendors;
@@ -639,7 +622,7 @@ export default function App() {
           vendors={vendorsForMessages}
           threads={inboxThreads || {}}
           onOpenVendor={me?.role === "pharmacist" ? undefined : (id) => go("vendorProfile", { id })}
-          onSend={(partnerId, text, attachments) => onSendFromMessages(partnerId, text, attachments)}
+          onSend={(partnerId, text, attachments, replyTo) => onSendFromMessages(partnerId, text, attachments, replyTo)}
           resolvePhone={(partnerId) => {
             const v = vendorById(partnerId);
             return v?.contact ? normalizePhone(v.contact) : "";
@@ -709,16 +692,12 @@ export default function App() {
     profile: <Profile me={me} onLogout={() => setState((s) => ({ ...s, me: null, screen: "landing" }))} />,
   };
 
-  // Header hidden only while an inner thread is open
   const showHeader = !(state.screen === "messages" && hideNavForChatThread);
-
-  // Bottom nav hidden only while an inner thread is open
   const showBottomNav =
     state.screen !== "landing" &&
     state.screen !== "auth" &&
     !(state.screen === "messages" && hideNavForChatThread);
 
-  // When thread is open: lock page scroll + remove padding so the Chat grid owns the viewport.
   const mainPad = state.screen === "messages" && hideNavForChatThread ? "p-0" : "p-3 sm:p-4";
   const mainPb =
     state.screen === "messages" && hideNavForChatThread ? "pb-0" : showBottomNav ? "pb-32" : "pb-4";
@@ -791,12 +770,30 @@ export default function App() {
           >
             {bottomTabs.map((tab) => {
               const isActive = state.screen === tab.key;
+              const cartCount = state.cart.reduce((sum, ci) => sum + ci.qty, 0);
               const showCartBadge = tab.key === "cart" && cartCount > 0;
               const cartBadgeText = cartCount > 99 ? "99+" : String(cartCount);
-              const showMsgBadge = tab.key === "messages" && unreadMessages > 0;
-              const msgBadgeText = unreadMessages > 99 ? "99+" : String(unreadMessages);
-              const IconCmp = NAV_ICONS[tab.key] || NAV_ICONS.messages;
 
+              // recompute unread (already memoized above)
+              const unread =
+                tab.key === "messages"
+                  ? (state.conversations || []).reduce((total, c) => {
+                      const since = Number(state.lastMessagesSeenAt) || 0;
+                      for (const m of asArray(c.messages)) {
+                        const t = new Date(m.at || 0).getTime();
+                        if (t > since) {
+                          if (me?.role === "customer" && m.from === "vendor") total += 1;
+                          if (me?.role === "pharmacist" && m.from === "customer") total += 1;
+                        }
+                      }
+                      return total;
+                    }, 0)
+                  : 0;
+
+              const showMsgBadge = tab.key === "messages" && unread > 0;
+              const msgBadgeText = unread > 99 ? "99+" : String(unread);
+
+              const IconCmp = NAV_ICONS[tab.key] || NAV_ICONS.messages;
               return (
                 <button
                   key={tab.key}

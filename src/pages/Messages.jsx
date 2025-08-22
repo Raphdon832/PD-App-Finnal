@@ -32,6 +32,18 @@ function EmptyState({ title, body }) {
   );
 }
 
+function QuotedMini({ q }) {
+  if (!q) return null;
+  return (
+    <div className="mb-1 text-xs rounded-md bg-black/5 text-slate-700 border-l-2 border-slate-400 pl-2 pr-2 py-1">
+      <div className="truncate max-w-[220px]">
+        <span className="font-medium">{q.from === "me" ? "You" : "Them"}: </span>
+        <span className="opacity-90">{q.text || "(attachment)"}</span>
+      </div>
+    </div>
+  );
+}
+
 function ChatThreadScreen({
   partnerId,
   partnerName,
@@ -44,9 +56,78 @@ function ChatThreadScreen({
   onActiveChange,
 }) {
   const [text, setText] = useState("");
-  const [files, setFiles] = useState([]); // { id, file, url, name, type, size, kind: 'image'|'file' }
+  const [files, setFiles] = useState([]); // { id, file, url, name, type, size, kind }
+  const [replyingTo, setReplyingTo] = useState(null); // {id, text, from, at}
   const fileInputRef = useRef(null);
   const endRef = useRef(null);
+
+  // gesture / swipe-to-reply
+  const [dragId, setDragId] = useState(null);
+  const [dragX, setDragX] = useState(0);
+  const dragStartRef = useRef({ x: 0, y: 0, active: false });
+
+  const SWIPE_TRIGGER = 56;  // px to trigger reply
+  const SWIPE_MAX = 72;      // max translate
+  const SWIPE_SLOPE = 0.6;   // ignore drags that are too vertical
+
+  const onTouchStart = (e, msg) => {
+    const t = e.touches?.[0];
+    if (!t) return;
+    dragStartRef.current = { x: t.clientX, y: t.clientY, active: true };
+    setDragId(msg.id);
+    setDragX(0);
+  };
+  const onTouchMove = (e) => {
+    if (!dragStartRef.current.active) return;
+    const t = e.touches?.[0];
+    if (!t) return;
+    const dx = t.clientX - dragStartRef.current.x;
+    const dy = Math.abs(t.clientY - dragStartRef.current.y);
+    if (dx < 0 || dy > Math.abs(dx) * SWIPE_SLOPE) {
+      // only consider right-swipe and mostly horizontal
+      setDragX(0);
+      return;
+    }
+    setDragX(Math.min(dx, SWIPE_MAX));
+  };
+  const onTouchEnd = (msg) => {
+    if (!dragStartRef.current.active) return;
+    dragStartRef.current.active = false;
+    if (dragX >= SWIPE_TRIGGER) {
+      setReplyingTo({ id: msg.id, text: msg.text, from: msg.from, at: msg.at });
+    }
+    setDragId(null);
+    setDragX(0);
+  };
+
+  // Desktop mouse drag (optional)
+  const onMouseDown = (e, msg) => {
+    dragStartRef.current = { x: e.clientX, y: e.clientY, active: true };
+    setDragId(msg.id);
+    setDragX(0);
+    const move = (ev) => {
+      if (!dragStartRef.current.active) return;
+      const dx = ev.clientX - dragStartRef.current.x;
+      const dy = Math.abs(ev.clientY - dragStartRef.current.y);
+      if (dx < 0 || dy > Math.abs(dx) * SWIPE_SLOPE) {
+        setDragX(0);
+        return;
+      }
+      setDragX(Math.min(dx, SWIPE_MAX));
+    };
+    const up = () => {
+      if (dragX >= SWIPE_TRIGGER) {
+        setReplyingTo({ id: msg.id, text: msg.text, from: msg.from, at: msg.at });
+      }
+      dragStartRef.current.active = false;
+      setDragId(null);
+      setDragX(0);
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", up);
+    };
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+  };
 
   // Lock page scroll while thread is open
   useEffect(() => {
@@ -94,7 +175,7 @@ function ChatThreadScreen({
       };
     });
     setFiles((prev) => [...prev, ...next]);
-    e.target.value = ""; // allow picking same file again
+    e.target.value = "";
   };
   const removeFile = (id) =>
     setFiles((prev) => {
@@ -107,9 +188,11 @@ function ChatThreadScreen({
     const trimmed = text.trim();
     if (!trimmed && files.length === 0) return;
     const atts = files.map((a) => ({ name: a.name, type: a.type, size: a.size, url: a.url, kind: a.kind }));
-    onSend(partnerId, trimmed, atts);
+    // include replyTo metadata if present
+    onSend(partnerId, trimmed, atts, replyingTo ? { id: replyingTo.id, text: replyingTo.text, from: replyingTo.from, at: replyingTo.at } : null);
     setText("");
     setFiles([]);
+    setReplyingTo(null);
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   };
 
@@ -117,7 +200,7 @@ function ChatThreadScreen({
 
   return (
     <div className="grid grid-rows-[auto_1fr_auto] h-[100dvh] overflow-hidden">
-      {/* Header (tweak your colors as needed) */}
+      {/* Header */}
       <div className="px-4 py-2 flex items-center gap-2 border-b border-[#F0F0F0] bg-[#FFFFFF] backdrop-blur-xl">
         <Button variant="ghost" size="icon" onClick={onBack} className="text-black">
           <ArrowLeft className="h-5 w-5 text-black" />
@@ -139,10 +222,11 @@ function ChatThreadScreen({
         )}
       </div>
 
-      {/* Messages area with date stamps + attachments */}
+      {/* Messages area */}
       <div
         className="overflow-y-auto overscroll-contain px-4 py-2 bg-cover bg-center"
         style={{ backgroundImage: "url('/Background-Watermark.png')" }}
+        onTouchMove={onTouchMove}
       >
         {thread.length === 0 ? (
           <div className="text-slate-400 text-center mt-8">No messages yet.</div>
@@ -153,6 +237,9 @@ function ChatThreadScreen({
             const prev = thread[i - 1];
             const needDateStamp = i === 0 || !isSameDay(thisDate, new Date(prev?.at || 0));
 
+            const isDragging = dragId === msg.id;
+            const translate = isDragging ? dragX : 0;
+
             return (
               <React.Fragment key={msg.id}>
                 {needDateStamp && (
@@ -162,46 +249,41 @@ function ChatThreadScreen({
                 )}
 
                 <div className={`mb-3 flex ${mine ? "justify-end" : "justify-start"}`}>
-                  <div className="max-w-[80%]">
-                    {/* Bubble (WhatsApp-like) */}
-                    <div
-                      className={`px-3 py-2 text-sm leading-snug break-words shadow ${
-                        mine
-                          ? "bg-[#000000] text-white rounded-lg rounded-br-none" // mine: light green, right "tail"
-                          : "bg-gray text-black rounded-lg rounded-bl-none"    // theirs: white, left "tail"
-                      }`}
-                    >
-                      {/* Attachments (if any) */}
+                  <div
+                    className="max-w-[80%] relative"
+                    onTouchStart={(e) => onTouchStart(e, msg)}
+                    onTouchEnd={() => onTouchEnd(msg)}
+                    onMouseDown={(e) => onMouseDown(e, msg)}
+                    style={{ transform: `translateX(${translate}px)`, transition: isDragging ? "none" : "transform 120ms ease-out" }}
+                  >
+                    {/* Swipe indicator (appears while dragging) */}
+                    {isDragging && translate > 12 && (
+                      <div className="absolute -left-7 top-1/2 -translate-y-1/2 rounded-full w-6 h-6 bg-slate-800/80 text-white flex items-center justify-center">
+                        ↩
+                      </div>
+                    )}
+
+                    {/* Bubble with optional quote */}
+                    <div className={`px-3 py-2 text-sm leading-snug break-words shadow ${mine ? "bg-[#000000] text-white rounded-lg rounded-br-none" : "bg-white text-black rounded-lg rounded-bl-none"}`}>
+                      <QuotedMini q={msg.replyTo} />
+
+                      {/* Attachments */}
                       {Array.isArray(msg.attachments) && msg.attachments.length > 0 && (
-                        <div
-                          className={`mb-2 grid gap-2 ${
-                            msg.attachments.filter((a) => a.kind === "image").length > 1
-                              ? "grid-cols-2"
-                              : "grid-cols-1"
-                          }`}
-                        >
+                        <div className={`mb-2 grid gap-2 ${msg.attachments.filter((a) => a.kind === "image").length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
                           {msg.attachments.map((a, idx) =>
                             a.kind === "image" ? (
                               <a key={idx} href={a.url} target="_blank" rel="noreferrer">
                                 <img src={a.url} alt={a.name || "image"} className="w-full h-40 object-cover rounded-xl" />
                               </a>
                             ) : (
-                              <a
-                                key={idx}
-                                href={a.url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className={`px-3 py-2 rounded-lg text-xs ${
-                                  mine ? "bg-white/70 text-slate-800" : "bg-slate-100 text-slate-700"
-                                }`}
-                              >
+                              <a key={idx} href={a.url} target="_blank" rel="noreferrer" className={`px-3 py-2 rounded-lg text-xs ${mine ? "bg-white/20 text-white" : "bg-slate-100 text-slate-700"}`}>
                                 {a.name || "attachment"}
                               </a>
                             )
                           )}
                         </div>
                       )}
-                      {/* Text (if present) */}
+
                       {msg.text}
                     </div>
 
@@ -221,8 +303,24 @@ function ChatThreadScreen({
       </div>
 
       {/* Composer */}
-      <div className="px-4 py-2 bg-white border-t border-[#F0F0F0]" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 4px)" }}>
-        {/* Previews row (if any files selected) */}
+      <div
+        className="px-4 py-2 bg-white border-t border-[#F0F0F0]"
+        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 4px)" }}
+      >
+        {/* Reply chip */}
+        {replyingTo && (
+          <div className="mb-2 flex items-center justify-between rounded-lg bg-slate-100 border pl-3 pr-2 py-2">
+            <div className="min-w-0 text-xs">
+              <div className="font-medium text-slate-700 mb-0.5">Replying to {replyingTo.from === "me" ? "you" : "them"}</div>
+              <div className="truncate text-slate-600 max-w-[75vw]">{replyingTo.text || "(attachment)"}</div>
+            </div>
+            <button className="ml-3 rounded-full p-1 hover:bg-slate-200" onClick={() => setReplyingTo(null)} aria-label="Cancel reply">
+              <X className="h-4 w-4 text-slate-600" />
+            </button>
+          </div>
+        )}
+
+        {/* Previews row (files) */}
         {files.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-2">
             {files.map((f) =>
@@ -250,7 +348,6 @@ function ChatThreadScreen({
         )}
 
         <div className="flex items-center gap-2">
-          {/* Paperclip */}
           <Button type="button" variant="ghost" size="icon" onClick={pickFiles} className="rounded-full">
             <Paperclip className="h-5 w-5" />
           </Button>
@@ -263,7 +360,6 @@ function ChatThreadScreen({
             onChange={onChooseFiles}
           />
 
-          {/* Text input */}
           <Input
             className="flex-1 rounded-2xl"
             value={text}
@@ -277,14 +373,13 @@ function ChatThreadScreen({
             }}
           />
 
-          {/* Send */}
           <Button
             type="button"
             variant="ghost"
             size="icon"
             className="rounded-full p-2 hover:bg-transparent disabled:opacity-40"
             onClick={sendNow}
-            disabled={!canSend}
+            disabled={!text.trim() && files.length === 0}
             aria-label="Send message"
             title="Send"
           >
@@ -313,7 +408,8 @@ export default function Messages({
       const partnerVendor = vendorById[partnerId];
       const partnerName = partnerVendor ? partnerVendor.name : `Customer ${String(partnerId).slice(0, 6)}`;
       const lastAt = last?.at ? new Date(last.at).getTime() : 0;
-      const lastPreview = last?.text || (last?.attachments?.length ? `${last.attachments.length} attachment${last.attachments.length>1?"s":""}` : "No messages yet");
+      const lastPreview =
+        last?.text || (last?.attachments?.length ? `${last.attachments.length} attachment${last.attachments.length > 1 ? "s" : ""}` : "No messages yet");
 
       // unread count (only messages from "them" after lastSeenAt)
       const unread = msgs.reduce((acc, m) => {
