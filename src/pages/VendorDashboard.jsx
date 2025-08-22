@@ -78,13 +78,13 @@ export default function VendorDashboard({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-2 sm:px-0">
       <section className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
           <h2 className="text-lg font-semibold">Vendor Profile</h2>
           {myVendor && <Badge variant="secondary">{myVendor.name}</Badge>}
         </div>
-        <div className="grid md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="grid gap-2">
             <Label>Pharmacy Name</Label>
             <Input value={profile.name} onChange={(e)=>setProfile(v=>({...v, name:e.target.value}))} />
@@ -109,7 +109,7 @@ export default function VendorDashboard({
             </div>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <Button
             onClick={()=>{
               if (!profile.name.trim()) return alert("Enter pharmacy name");
@@ -127,6 +127,7 @@ export default function VendorDashboard({
               upsertVendor(v);
               alert("Vendor profile saved");
             }}
+            className="w-full sm:w-auto"
           >
             Save Profile
           </Button>
@@ -135,7 +136,7 @@ export default function VendorDashboard({
 
       <section className="space-y-3">
         <h3 className="font-semibold">Create Product</h3>
-        <div className="grid md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="grid gap-2">
             <Label>Name</Label>
             <Input value={form.name} onChange={(e)=>setForm(v=>({...v, name:e.target.value}))} placeholder="Ibuprofen 400mg" />
@@ -150,7 +151,7 @@ export default function VendorDashboard({
           </div>
           <div className="grid gap-2">
             <Label>Category</Label>
-            <select className="border rounded-md px-3 py-2 text-sm" value={form.category} onChange={(e)=>setForm(v=>({...v, category:e.target.value}))}>
+            <select className="border rounded-md px-3 py-2 text-sm w-full" value={form.category} onChange={(e)=>setForm(v=>({...v, category:e.target.value}))}>
               {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
@@ -158,17 +159,17 @@ export default function VendorDashboard({
             <Label>Description</Label>
             <Textarea value={form.description} onChange={(e)=>setForm(v=>({...v, description:e.target.value}))} placeholder="Brief product description" />
           </div>
-          <div className="md:col-span-2 flex items-center gap-3">
-            <input type="file" accept="image/*" onChange={onPickImage} />
+          <div className="md:col-span-2 flex flex-col sm:flex-row items-center gap-3">
+            <input type="file" accept="image/*" onChange={onPickImage} className="w-full sm:w-auto" />
             {form.image && <img src={form.image} alt="preview" className="h-16 w-16 object-cover rounded-md" />}
-            <Button onClick={onSubmit} className="ml-auto">Add product</Button>
+            <Button onClick={onSubmit} className="w-full sm:w-auto ml-auto">Add product</Button>
           </div>
         </div>
       </section>
 
       <section className="space-y-3">
         <h3 className="font-semibold">Bulk import</h3>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-center gap-3">
           <input type="file" accept=".csv,.xml" multiple onChange={async (e)=>{
             const files = Array.from(e.target.files||[]);
             e.target.value = "";
@@ -201,13 +202,13 @@ export default function VendorDashboard({
               }
             }
             importFiles(items);
-          }} />
-          <Button variant="outline"><Upload className="h-4 w-4 mr-2" />Choose files</Button>
+          }} className="w-full sm:w-auto" />
+          <Button variant="outline" className="w-full sm:w-auto"><Upload className="h-4 w-4 mr-2" />Choose files</Button>
         </div>
       </section>
 
       <section className="space-y-2">
-        <div className="flex items-center justify-between font-poppins tracking-tighter">
+        <div className="flex flex-col sm:flex-row items-center justify-between font-poppins tracking-tighter gap-2">
           <h3 className="font-semibold">Inventory</h3>
           <div className="text-xs text-slate-500">{myProducts.length} item(s)</div>
         </div>
@@ -220,9 +221,9 @@ export default function VendorDashboard({
               <div className="p-3 space-y-1 font-poppins tracking-tighter">
                 <div className="text-sm font-medium line-clamp-1 tracking-tighter">{p.name}</div>
                 <div className="text-xs text-slate-500 tracking-tighter">{currency(p.price)} • Stock {p.stock}</div>
-                <div className="pt-1 flex gap-2 tracking-tighter">
-                  <Button variant="ghost" size="sm" onClick={()=>navigator?.clipboard?.writeText(p.id)} className="font-poppins tracking-tighter">Copy ID</Button>
-                  <Button variant="ghost" size="sm" onClick={()=>removeProduct(p.id)} className="font-poppins tracking-tighter"><Trash2 className="h-4 w-4 mr-1" />Remove</Button>
+                <div className="pt-1 flex flex-col sm:flex-row gap-2 tracking-tighter">
+                  <Button variant="ghost" size="sm" onClick={()=>navigator?.clipboard?.writeText(p.id)} className="font-poppins tracking-tighter w-full sm:w-auto">Copy ID</Button>
+                  <Button variant="ghost" size="sm" onClick={()=>removeProduct(p.id)} className="font-poppins tracking-tighter w-full sm:w-auto"><Trash2 className="h-4 w-4 mr-1" />Remove</Button>
                 </div>
               </div>
             </div>
