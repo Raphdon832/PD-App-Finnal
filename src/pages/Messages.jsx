@@ -235,7 +235,7 @@ function ChatThreadScreen({
 
                 <div className={`mb-3 flex ${mine ? "justify-end" : "justify-start"}`}>
                   {/* Keep THIS flex child static. We only transform the inner .drag-wrap below */}
-                  <div className="max-w-[80%] min-w-0">
+                  <div className="max-w-[80%] min-w-0 relative" style={{ backfaceVisibility: "hidden" }}>
                     <div
                       className="relative drag-wrap transform-gpu will-change-transform select-none"
                       onTouchStart={(e) => onTouchStart(e, msg)}
@@ -245,6 +245,8 @@ function ChatThreadScreen({
                         WebkitTransform: `translate3d(${translate}px,0,0)`,
                         transform: `translate3d(${translate}px,0,0)`,
                         transition: isDragging ? "none" : "transform 120ms ease-out",
+                        willChange: "transform",
+                        backfaceVisibility: "hidden",
                       }}
                     >
                       {/* Swipe indicator */}
