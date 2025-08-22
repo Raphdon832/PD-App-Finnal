@@ -799,7 +799,7 @@ export default function App() {
                   key={tab.key}
                   type="button"
                   onClick={tab.onClick}
-                  className={`py-3 flex flex-col items-center justify-center text-xs font-poppins tracking-tighter ${isActive ? "text-sky-600" : "text-slate-700"}`}
+                  className={`py-3 flex flex-col items-center justify-center text-xs font-poppins tracking-tighter ${isActive ? "text-sky-600 font-bold" : "text-slate-700 font-normal"}`}
                 >
                   <div className="relative">
                     <IconCmp className="h-5 w-5" />
@@ -814,7 +814,7 @@ export default function App() {
                       </span>
                     )}
                   </div>
-                  <span className="mt-1 font-poppins tracking-tighter">{tab.label}</span>
+                  <span className={`mt-1 font-poppins tracking-tighter ${isActive ? "font-bold" : "font-normal"}`}>{tab.label}</span>
                 </button>
               );
             })}
