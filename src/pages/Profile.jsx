@@ -6,26 +6,30 @@ export default function Profile({ me, onLogout }){
   const [connected, setConnected] = useState(false);
   const connectWallet = async () => { if (typeof window !== 'undefined' && window.ethereum) { try { await window.ethereum.request({ method: 'eth_requestAccounts' }); setConnected(true); } catch {} } };
   return (
-    <div className="max-w-md mx-auto space-y-4">
+    <div className="max-w-md mx-auto space-y-4 font-poppins tracking-tighter">
       <Card>
-        <CardContent className="p-4">
+        <CardContent className="p-4 font-poppins tracking-tighter">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-lg font-semibold">{me?.name || 'Guest'}</div>
-              <div className="text-sm text-slate-600">Role: {me?.role || 'customer'}</div>
-              {me?.pharmacyName && <div className="text-sm text-slate-600">Pharmacy: {me.pharmacyName}</div>}
+              <div className="text-lg font-semibold tracking-tighter">{me?.name || 'Guest'}</div>
+              <div className="text-sm text-slate-600 tracking-tighter">Role: {me?.role || 'customer'}</div>
+              {me?.pharmacyName && <div className="text-sm text-slate-600 tracking-tighter">Pharmacy: {me.pharmacyName}</div>}
             </div>
-            <Button variant="outline" onClick={onLogout}>Log out</Button>
+            <Button variant="outline" onClick={onLogout} className="font-poppins tracking-tighter">Log out</Button>
           </div>
         </CardContent>
       </Card>
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Wallet</CardTitle>
-          <CardDescription>Connect MetaMask for future loyalty or payments</CardDescription>
+        <CardHeader className="font-poppins tracking-tighter">
+          <CardTitle className="text-base tracking-tighter">Wallet</CardTitle>
+          <CardDescription className="tracking-tighter">Connect MetaMask for future loyalty or payments</CardDescription>
         </CardHeader>
-        <CardContent>
-          {!connected ? (<Button onClick={connectWallet}>Connect MetaMask</Button>) : (<div className="text-sm text-emerald-600">Wallet connected</div>)}
+        <CardContent className="font-poppins tracking-tighter">
+          {!connected ? (
+            <Button onClick={connectWallet} className="font-poppins tracking-tighter">Connect MetaMask</Button>
+          ) : (
+            <div className="text-sm text-emerald-600 tracking-tighter">Wallet connected</div>
+          )}
         </CardContent>
       </Card>
     </div>

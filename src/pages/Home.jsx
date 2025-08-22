@@ -51,20 +51,20 @@ export default function Home({ go, vendors, products, addToCart, userLoc }) {
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <Input
-            className="pl-9"
+            className="pl-9 font-poppins tracking-tighter"
             placeholder="Search medicines"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
-        <Button variant="outline" onClick={() => go("catalog")}>
+        <Button variant="outline" onClick={() => go("catalog")} className="font-poppins tracking-tighter">
           <SlidersHorizontal className="h-4 w-4 mr-2" />
           Filters
         </Button>
       </div>
 
       {/* Change #2: add no-scrollbar */}
-      <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
+      <div className="flex gap-2 overflow-x-auto no-scrollbar py-1 font-poppins tracking-tighter">
         {CATEGORIES.map((cat) => (
           <Badge
             key={cat}
@@ -78,8 +78,8 @@ export default function Home({ go, vendors, products, addToCart, userLoc }) {
       </div>
 
       <section>
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="font-semibold">New Arrivals</h3>
+        <div className="flex items-center justify-between mb-2 font-poppins">
+          <h3 className="font-semibold font-poppins tracking-tighter">New Arrivals</h3>
           <Button variant="ghost" size="sm" onClick={() => go("catalog")}>
             View all
           </Button>
@@ -95,7 +95,7 @@ export default function Home({ go, vendors, products, addToCart, userLoc }) {
             const etaLabel = eta != null && v?.name ? `${eta} mins to ${v.name}` : null;
 
             return (
-              <div key={p.id} className="border-[0px] border-grey-20/70 rounded-[10px] overflow-hidden bg-grey-500">
+              <div key={p.id} className="border-[1px] border-gray-200 rounded-[10px] overflow-hidden bg-gray-50">
                 <div
                   className="aspect-square bg-slate-100 flex items-center justify-center cursor-pointer"
                   onClick={() => go("product", { id: p.id })}
@@ -107,14 +107,14 @@ export default function Home({ go, vendors, products, addToCart, userLoc }) {
                   )}
                 </div>
                 <div className="p-3">
-                  <div className="text-xs text-slate-500 mb-1">{v?.name || "—"}</div>
-                  <div className="text-sm font-medium line-clamp-1">{p.name}</div>
-                  <div className="text-sm font-semibold">{currency(p.price)}</div>
+                  <div className="text-xs text-slate-500 mb-1 font-poppins tracking-tighter">{v?.name || "—"}</div>
+                  <div className="text-sm font-medium line-clamp-1 font-poppins tracking-tighter">{p.name}</div>
+                  <div className="text-sm font-semibold font-poppins">{currency(p.price)}</div>
                   {etaLabel && (
                     <div className="mt-0.5 text-[11px] text-slate-500">{etaLabel}</div>
                   )}
                   <div className="mt-2 flex items-center gap-2">
-                    <Button size="sm" className="flex-1 rounded-[1px]" onClick={() => go("product", { id: p.id })}>
+                    <Button size="sm" className="flex-1 rounded-[1px] font-poppins tracking-tighter" onClick={() => go("product", { id: p.id })}>
                       View
                     </Button>
                     <Button size="icon" variant="outline" onClick={() => addToCart(p.id)}>

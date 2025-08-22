@@ -207,22 +207,22 @@ export default function VendorDashboard({
       </section>
 
       <section className="space-y-2">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between font-poppins tracking-tighter">
           <h3 className="font-semibold">Inventory</h3>
           <div className="text-xs text-slate-500">{myProducts.length} item(s)</div>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
           {myProducts.map((p) => (
-            <div key={p.id} className="border rounded-xl overflow-hidden">
+            <div key={p.id} className="border rounded-xl overflow-hidden font-poppins tracking-tighter">
               <div className="aspect-square bg-slate-100 flex items-center justify-center">
                 {p.image ? <img src={p.image} alt={p.name} className="object-cover w-full h-full" /> : <Pill className="h-8 w-8 text-slate-400" />}
               </div>
-              <div className="p-3 space-y-1">
-                <div className="text-sm font-medium line-clamp-1">{p.name}</div>
-                <div className="text-xs text-slate-500">{currency(p.price)} • Stock {p.stock}</div>
-                <div className="pt-1 flex gap-2">
-                  <Button variant="ghost" size="sm" onClick={()=>navigator?.clipboard?.writeText(p.id)} >Copy ID</Button>
-                  <Button variant="ghost" size="sm" onClick={()=>removeProduct(p.id)}><Trash2 className="h-4 w-4 mr-1" />Remove</Button>
+              <div className="p-3 space-y-1 font-poppins tracking-tighter">
+                <div className="text-sm font-medium line-clamp-1 tracking-tighter">{p.name}</div>
+                <div className="text-xs text-slate-500 tracking-tighter">{currency(p.price)} • Stock {p.stock}</div>
+                <div className="pt-1 flex gap-2 tracking-tighter">
+                  <Button variant="ghost" size="sm" onClick={()=>navigator?.clipboard?.writeText(p.id)} className="font-poppins tracking-tighter">Copy ID</Button>
+                  <Button variant="ghost" size="sm" onClick={()=>removeProduct(p.id)} className="font-poppins tracking-tighter"><Trash2 className="h-4 w-4 mr-1" />Remove</Button>
                 </div>
               </div>
             </div>
