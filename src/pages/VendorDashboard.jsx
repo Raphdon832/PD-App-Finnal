@@ -99,11 +99,14 @@ export default function VendorDashboard({
           </div>
           <div className="md:col-span-2 grid gap-2">
             <Label>Map Location</Label>
-            <MapPicker
-              value={{ lat: profile.lat, lng: profile.lng }}
-              onChange={(p)=>setProfile(v=>({...v, lat:p.lat, lng:p.lng}))}
-              height={260}
-            />
+            <div className="relative z-0 overflow-hidden rounded-md"> {/* ensure positioned and below header/nav */}
+              <MapPicker
+                value={{ lat: profile.lat, lng: profile.lng }}
+                onChange={(p)=>setProfile(v=>({...v, lat:p.lat, lng:p.lng}))}
+                height={260}
+                className="w-full" /* if MapPicker accepts className */
+              />
+            </div>
             <div className="text-xs text-slate-500">
               {`Pinned: ${profile.lat.toFixed(5)}, ${profile.lng.toFixed(5)}`}
             </div>

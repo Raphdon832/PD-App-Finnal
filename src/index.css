@@ -71,3 +71,23 @@ nav[role="navigation"], nav.fixed { padding-bottom: var(--safe-bottom); }
 *::-webkit-scrollbar-thumb {
   background: transparent;
 }
+
+/* Ensure Leaflet map is below sticky header / bottom nav */
+.leaflet-container {
+  position: relative; /* keep normal flow inside layout */
+  z-index: 0 !important; /* sit under site chrome (header/nav use z-40) */
+}
+
+/* If Leaflet panes are leaking above UI, clamp them too */
+.leaflet-map-pane,
+.leaflet-pane,
+.leaflet-tile,
+.leaflet-overlay-pane,
+.leaflet-shadow-pane,
+.leaflet-marker-pane,
+.leaflet-popup-pane {
+  z-index: 0 !important;
+}
+
+/* Keep Leaflet popups or controls if you want them above content — adjust if needed */
+/* .leaflet-popup { z-index: 60 !important; } */
