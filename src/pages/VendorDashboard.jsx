@@ -81,7 +81,7 @@ export default function VendorDashboard({
     <div className="space-y-6 px-2 sm:px-0">
       <section className="space-y-3">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold">Vendor Profile</h2>
+          <h2 className="text-2xl font-bold tracking-tighter font-poppins">Vendor Profile</h2>
           {myVendor && <Badge variant="secondary">{myVendor.name}</Badge>}
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -135,7 +135,7 @@ export default function VendorDashboard({
       </section>
 
       <section className="space-y-3">
-        <h3 className="font-semibold">Create Product</h3>
+        <h3 className="text-2xl font-bold tracking-tighter font-poppins">Create Product</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="grid gap-2">
             <Label>Name</Label>
