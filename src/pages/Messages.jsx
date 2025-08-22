@@ -221,7 +221,7 @@ function ChatThreadScreen({
 
       {/* Messages area */}
       <div
-        className="overflow-y-auto overscroll-contain px-4 py-2 bg-cover bg-center font-poppins text-[10px]"
+        className="overflow-y-auto overscroll-contain px-4 py-2 bg-cover bg-center font-poppins text-[12px]"
         style={{ backgroundImage: "url('/Background-Watermark.png')" }}
         onTouchMove={onTouchMove}
       >
@@ -269,7 +269,7 @@ function ChatThreadScreen({
                       )}
 
                       {/* Bubble */}
-                      <div className={`px-3 py-2 text-[10px] leading-snug break-words shadow ${mine ? "bg-[#000000] text-white rounded-lg rounded-br-none" : "bg-white text-black rounded-lg rounded-bl-none"}`}>
+                      <div className={`px-3 py-2 text-[12px] leading-snug break-words shadow ${mine ? "bg-[#000000] text-white rounded-lg rounded-br-none" : "bg-white text-black rounded-lg rounded-bl-none"}`}>
                         <QuotedMini q={msg.replyTo} />
 
                         {Array.isArray(msg.attachments) && msg.attachments.length > 0 && (
