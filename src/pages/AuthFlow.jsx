@@ -85,198 +85,197 @@ export default function AuthFlow({ role = "customer", onDone, onBack }) {
   }, []);
 
   return (
-    <div className="min-h-[calc(100vh-160px)] bg-watermark flex items-start sm:items-center justify-center">
-      <div className="w-full max-w-md px-4 py-8 relative pt-12">
+    <div className="min-h-[calc(100vh-160px)] bg-watermark flex items-start sm:items-center justify-center font-poppins tracking-tighter">
+      <div className="w-full max-w-md px-4 py-8 relative pt-12 font-poppins tracking-tighter">
         {onBack && (
           <button
             type="button"
             onClick={onBack}
-            className="absolute top-3 left-3 inline-flex items-center gap-2 px-3 py-2 rounded-full border bg-white text-slate-700 hover:bg-slate-50 shadow-sm"
+            className="absolute top-3 left-3 inline-flex items-center gap-2 px-3 py-2 rounded-full border bg-white text-slate-700 hover:bg-slate-50 shadow-sm font-poppins tracking-tighter"
           >
             <ArrowLeft size={18} />
-            <span className="text-sm">Back</span>
+            <span className="text-sm font-poppins tracking-tighter">Back</span>
           </button>
         )}
 
-        <div className="text-center mb-6">
+        <div className="text-center mb-6 font-poppins tracking-tighter">
           <img src={pdLogo} alt="PD Logo" className="mx-auto h-16 mb-2" />
-          <div className="tracking-[0.2em] text-base">HEALTHCARE AT YOUR DOORSTEP</div>
+          <div className="tracking-[0.2em] text-base font-poppins tracking-tighter">HEALTHCARE AT YOUR DOORSTEP</div>
         </div>
 
-{/* Segmented Toggle */}
-<div
-  ref={segRef}
-  role="tablist"
-  aria-label="Auth mode"
-  tabIndex={0}
-  className="relative mb-6"
->
-  <div
-    className="
-      relative h-[26px] w-full rounded-[5px]
-      bg-[#E7E7E7]
-      border border-[#E7E7E7]
-      overflow-hidden
-    "
-  >
-    {/* sliding thumb */}
-    <span
-      aria-hidden="true"
-      className={`
-        absolute left-0 top-0 h-[26px] w-1/2 rounded-[5px]
-        bg-white transition-transform duration-200 ease-out
-        ${activeIndex === 0 ? "translate-x-0" : "translate-x-full"}
-      `}
-    />
-    <div className="relative z-10 grid grid-cols-2 h-full">
-      <button
-        role="tab"
-        aria-selected={mode === "signup"}
-        type="button"
-        onClick={() => setMode("signup")}
-        className={`
-          text-xs font-semibold focus:outline-none
-          ${mode === "signup" ? "text-[#000000]" : "text-[#BCBCBC]"}
-        `}
-      >
-        <div className="w-full h-full flex items-center justify-center">
-          SIGN UP
+        {/* Segmented Toggle */}
+        <div
+          ref={segRef}
+          role="tablist"
+          aria-label="Auth mode"
+          tabIndex={0}
+          className="relative mb-6 font-poppins tracking-tighter"
+        >
+          <div
+            className="
+              relative h-[26px] w-full rounded-[5px]
+              bg-[#E7E7E7]
+              border border-[#E7E7E7]
+              overflow-hidden
+            "
+          >
+            {/* sliding thumb */}
+            <span
+              aria-hidden="true"
+              className={`
+                absolute left-0 top-0 h-[26px] w-1/2 rounded-[5px]
+                bg-white transition-transform duration-200 ease-out
+                ${activeIndex === 0 ? "translate-x-0" : "translate-x-full"}
+              `}
+            />
+            <div className="relative z-10 grid grid-cols-2 h-full font-poppins tracking-tighter">
+              <button
+                role="tab"
+                aria-selected={mode === "signup"}
+                type="button"
+                onClick={() => setMode("signup")}
+                className={`
+                  text-xs font-semibold focus:outline-none font-poppins tracking-tighter
+                  ${mode === "signup" ? "text-[#000000]" : "text-[#BCBCBC]"}
+                `}
+              >
+                <div className="w-full h-full flex items-center justify-center font-poppins tracking-tighter">
+                  SIGN UP
+                </div>
+              </button>
+              <button
+                role="tab"
+                aria-selected={mode === "signin"}
+                type="button"
+                onClick={() => setMode("signin")}
+                className={`
+                  text-xs font-semibold focus:outline-none font-poppins tracking-tighter
+                  ${mode === "signin" ? "text-[#000000]" : "text-[#BCBCBC]"}
+                `}
+              >
+                <div className="w-full h-full flex items-center justify-center font-poppins tracking-tighter">
+                  SIGN IN
+                </div>
+              </button>
+            </div>
+          </div>
         </div>
-      </button>
-      <button
-        role="tab"
-        aria-selected={mode === "signin"}
-        type="button"
-        onClick={() => setMode("signin")}
-        className={`
-          text-xs font-semibold focus:outline-none
-          ${mode === "signin" ? "text-[#000000]" : "text-[#BCBCBC]"}
-        `}
-      >
-        <div className="w-full h-full flex items-center justify-center">
-          SIGN IN
-        </div>
-      </button>
-    </div>
-  </div>
-</div>
 
-
-        <div className="space-y-4">
+        <div className="space-y-4 font-poppins tracking-tighter">
           {mode === "signup" ? (
             <>
-              <div className="grid gap-2">
-                <Label className="tracking-wide">{isCustomer ? "DISPLAY NAME" : "CONTACT NAME"}</Label>
+              <div className="grid gap-2 font-poppins tracking-tighter">
+                <Label className="tracking-wide font-poppins tracking-tighter">{isCustomer ? "DISPLAY NAME" : "CONTACT NAME"}</Label>
                 <Input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder={isCustomer ? "Jane Doe" : "Full name"}
-                  className="h-12 rounded-2xl text-base"
+                  className="h-12 rounded-2xl text-base font-poppins tracking-tighter"
                 />
               </div>
 
-              <div className="grid gap-2">
-                <Label className="tracking-wide">EMAIL</Label>
+              <div className="grid gap-2 font-poppins tracking-tighter">
+                <Label className="tracking-wide font-poppins tracking-tighter">EMAIL</Label>
                 <Input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder={isCustomer ? "you@example.com" : "name@pharmacy.com"}
-                  className="h-12 rounded-2xl text-base"
+                  className="h-12 rounded-2xl text-base font-poppins tracking-tighter"
                 />
               </div>
 
               {isCustomer ? (
-                <div className="grid gap-2">
-                  <Label className="tracking-wide">PHONE NUMBER</Label>
+                <div className="grid gap-2 font-poppins tracking-tighter">
+                  <Label className="tracking-wide font-poppins tracking-tighter">PHONE NUMBER</Label>
                   <Input
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="+234 801 234 5678"
-                    className="h-12 rounded-2xl text-base"
+                    className="h-12 rounded-2xl text-base font-poppins tracking-tighter"
                   />
                 </div>
               ) : (
                 <>
-                  <div className="grid gap-2">
-                    <Label className="tracking-wide">PHARMACY NAME</Label>
+                  <div className="grid gap-2 font-poppins tracking-tighter">
+                    <Label className="tracking-wide font-poppins tracking-tighter">PHARMACY NAME</Label>
                     <Input
                       value={pharmacyName}
                       onChange={(e) => setPharmacyName(e.target.value)}
                       placeholder="HopeWell Pharmacy"
-                      className="h-12 rounded-2xl text-base"
+                      className="h-12 rounded-2xl text-base font-poppins tracking-tighter"
                     />
                   </div>
-                  <div className="grid gap-2">
-                    <Label className="tracking-wide">PHONE NUMBER</Label>
+                  <div className="grid gap-2 font-poppins tracking-tighter">
+                    <Label className="tracking-wide font-poppins tracking-tighter">PHONE NUMBER</Label>
                     <Input
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       placeholder="+234 801 234 5678"
-                      className="h-12 rounded-2xl text-base"
+                      className="h-12 rounded-2xl text-base font-poppins tracking-tighter"
                     />
                   </div>
-                  <div className="grid gap-2">
-                    <Label className="tracking-wide">ADDRESS</Label>
+                  <div className="grid gap-2 font-poppins tracking-tighter">
+                    <Label className="tracking-wide font-poppins tracking-tighter">ADDRESS</Label>
                     <Input
                       value={address}
                       onChange={(e) => setAddress(e.target.value)}
                       placeholder="Street, Area, City"
-                      className="h-12 rounded-2xl text-base"
+                      className="h-12 rounded-2xl text-base font-poppins tracking-tighter"
                     />
                   </div>
-                  <div className="grid gap-2">
-                    <Label className="tracking-wide">SET LOCATION ON MAP</Label>
+                  <div className="grid gap-2 font-poppins tracking-tighter">
+                    <Label className="tracking-wide font-poppins tracking-tighter">SET LOCATION ON MAP</Label>
                     <MapPicker
                       value={pin || { lat: 9.0765, lng: 7.3986 }}
                       onChange={setPin}
                       height={220}
                     />
-                    <div className="text-xs text-slate-500">
+                    <div className="text-xs text-slate-500 font-poppins tracking-tighter">
                       {pin ? `Pinned: ${pin.lat.toFixed(5)}, ${pin.lng.toFixed(5)}` : "Tap map to drop a pin"}
                     </div>
                   </div>
                 </>
               )}
 
-              <div className="grid gap-2">
-                <Label className="tracking-wide">PASSWORD</Label>
+              <div className="grid gap-2 font-poppins tracking-tighter">
+                <Label className="tracking-wide font-poppins tracking-tighter">PASSWORD</Label>
                 <Input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="h-12 rounded-2xl text-base"
+                  className="h-12 rounded-2xl text-base font-poppins tracking-tighter"
                 />
               </div>
 
-              <Button className="w-full h-12 rounded-2xl text-lg" onClick={submit}>
+              <Button className="w-full h-12 rounded-2xl text-lg font-poppins tracking-tighter" onClick={submit}>
                 {isCustomer ? "CREATE ACCOUNT" : "REGISTER PHARMACY"}
               </Button>
             </>
           ) : (
             <>
-              <div className="grid gap-2">
-                <Label className="tracking-wide">EMAIL</Label>
+              <div className="grid gap-2 font-poppins tracking-tighter">
+                <Label className="tracking-wide font-poppins tracking-tighter">EMAIL</Label>
                 <Input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className="h-12 rounded-2xl text-base"
+                  className="h-12 rounded-2xl text-base font-poppins tracking-tighter"
                 />
               </div>
-              <div className="grid gap-2">
-                <Label className="tracking-wide">PASSWORD</Label>
+              <div className="grid gap-2 font-poppins tracking-tighter">
+                <Label className="tracking-wide font-poppins tracking-tighter">PASSWORD</Label>
                 <Input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="h-12 rounded-2xl text-base"
+                  className="h-12 rounded-2xl text-base font-poppins tracking-tighter"
                 />
               </div>
-              <Button className="w-full h-12 rounded-2xl text-lg" onClick={submit}>
+              <Button className="w-full h-12 rounded-2xl text-lg font-poppins tracking-tighter" onClick={submit}>
                 SIGN IN
               </Button>
             </>
