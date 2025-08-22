@@ -209,7 +209,7 @@ function ChatThreadScreen({
 
       {/* Messages area */}
       <div
-        className="overflow-y-auto overscroll-contain px-4 py-2 bg-cover bg-center"
+        className="overflow-y-auto overscroll-contain px-4 py-2 bg-cover bg-center font-poppins"
         style={{ backgroundImage: "url('/Background-Watermark.png')" }}
         onTouchMove={onTouchMove}
       >
