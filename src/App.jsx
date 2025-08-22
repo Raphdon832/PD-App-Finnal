@@ -799,22 +799,22 @@ export default function App() {
                   key={tab.key}
                   type="button"
                   onClick={tab.onClick}
-                  className={`py-3 flex flex-col items-center justify-center text-xs ${isActive ? "text-sky-600" : "text-slate-700"}`}
+                  className={`py-3 flex flex-col items-center justify-center text-xs font-poppins tracking-tighter ${isActive ? "text-sky-600" : "text-slate-700"}`}
                 >
                   <div className="relative">
                     <IconCmp className="h-5 w-5" />
                     {showCartBadge && (
-                      <span className="absolute -top-1 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] leading-[18px] text-center font-semibold shadow-sm">
+                      <span className="absolute -top-1 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] leading-[18px] text-center font-semibold shadow-sm font-poppins tracking-tighter">
                         {cartBadgeText}
                       </span>
                     )}
                     {showMsgBadge && (
-                      <span className="absolute -top-1 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] leading-[18px] text-center font-semibold shadow-sm">
+                      <span className="absolute -top-1 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] leading-[18px] text-center font-semibold shadow-sm font-poppins tracking-tighter">
                         {msgBadgeText}
                       </span>
                     )}
                   </div>
-                  <span className="mt-1">{tab.label}</span>
+                  <span className="mt-1 font-poppins tracking-tighter">{tab.label}</span>
                 </button>
               );
             })}
