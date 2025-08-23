@@ -358,7 +358,12 @@ export default function App() {
     setState((s) => {
       const exists = s.vendors.some((x) => x.id === v.id);
       const vendors = exists ? s.vendors.map((x) => (x.id === v.id ? v : x)) : [...s.vendors, v];
-      return { ...s, vendors };
+      // If the pharmacist's pharmacyName changed, update me.pharmacyName as well
+      let me = s.me;
+      if (me?.role === "pharmacist" && v.name && me.pharmacyName !== v.name) {
+        me = { ...me, pharmacyName: v.name };
+      }
+      return { ...s, vendors, me };
     });
 
   const addProduct = (p) => setState((s) => ({ ...s, products: [{ ...p, id: uid() }, ...s.products] }));
@@ -689,7 +694,14 @@ export default function App() {
         onAddToCart={(id) => addToCart(id)}
       />
     ),
-    profile: <Profile me={me} onLogout={() => setState((s) => ({ ...s, me: null, screen: "landing" }))} />,
+    profile: (
+      <Profile
+        me={me}
+        myVendor={myVendor}
+        upsertVendor={upsertVendor}
+        onLogout={() => setState((s) => ({ ...s, me: null, screen: "landing" }))}
+      />
+    ),
   };
 
   const showHeader = !(state.screen === "messages" && hideNavForChatThread);
