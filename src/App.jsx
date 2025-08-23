@@ -144,10 +144,10 @@ async function reverseGeocode(lat, lng) {
 const asArray = (v) => (Array.isArray(v) ? v : []);
 const getVendorForPharm = (me, vendors) =>
   me?.role === "pharmacist"
-    ? vendors.find((v) => v.name === me.pharmacyName) || null
+    ? vendors.find((v) => v.uid === (me.uid || me.id)) || null
     : null;
 const getCustomerId = (me) => me?.uid || me?.id || null;
-const getVendorId = (me, vendors) => getVendorForPharm(me, vendors)?.id || null;
+const getVendorId = (me, vendors) => getVendorForPharm(me, vendors)?.uid || null;
 const seenKeyFor = (me, vendors) => {
   if (!me) return null;
   if (me.role === "pharmacist")

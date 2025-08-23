@@ -268,9 +268,12 @@ export default function Profile({ me, myVendor, upsertVendor, onLogout }){
               <Button
                 onClick={() => {
                   if (!profile.name.trim()) return alert("Enter pharmacy name");
+                  // Always preserve vendor UID if it exists, or generate if missing
+                  const vendorUid = (myVendor && (myVendor.uid || myVendor.id)) || (me && (me.uid || me.id)) || uid();
                   const v = {
                     ...(myVendor || {}),
-                    id: (myVendor && myVendor.id) || `v_${Math.random().toString(36).slice(2,8)}`,
+                    id: (myVendor && myVendor.id) || `v_${vendorUid}`,
+                    uid: vendorUid,
                     name: profile.name.trim(),
                     bio: myVendor?.bio || "",
                     address: profile.address.trim(),
