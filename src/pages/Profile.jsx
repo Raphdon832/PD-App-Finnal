@@ -1,5 +1,5 @@
 /* FILE: src/pages/Profile.jsx */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,10 @@ export default function Profile({ me, myVendor, upsertVendor, onLogout }){
   const [image, setImage] = useState(myVendor?.image || "");
   const [dp, setDp] = useState(myVendor?.dp || "");
   const [images, setImages] = useState(myVendor?.images || []);
+  const [addressQuery, setAddressQuery] = useState("");
+  const [addressResults, setAddressResults] = useState([]);
+  const [addressLoading, setAddressLoading] = useState(false);
+  const addressTimeout = useRef();
 
   useEffect(() => {
     if (myVendor) {
@@ -57,6 +61,30 @@ export default function Profile({ me, myVendor, upsertVendor, onLogout }){
       } catch {}
     }
   };
+
+  // Address autocomplete effect
+  useEffect(() => {
+    if (!editing) return;
+    if (!addressQuery.trim()) {
+      setAddressResults([]);
+      return;
+    }
+    setAddressLoading(true);
+    clearTimeout(addressTimeout.current);
+    addressTimeout.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressQuery)}&addressdetails=1&limit=5`
+        );
+        const data = await res.json();
+        setAddressResults(data);
+      } catch {
+        setAddressResults([]);
+      }
+      setAddressLoading(false);
+    }, 400);
+    return () => clearTimeout(addressTimeout.current);
+  }, [addressQuery, editing]);
 
   return (
     <div className="max-w-md mx-auto space-y-4 font-poppins tracking-tighter">
@@ -172,7 +200,43 @@ export default function Profile({ me, myVendor, upsertVendor, onLogout }){
               </div>
               <div className="grid gap-2">
                 <Label>Address</Label>
-                <Input value={profile.address} readOnly={!editing} onChange={e => setProfile(v => ({ ...v, address: e.target.value }))} />
+                <div className="relative">
+                  <Input
+                    value={profile.address}
+                    readOnly={!editing}
+                    onChange={e => {
+                      setProfile(v => ({ ...v, address: e.target.value }));
+                      setAddressQuery(e.target.value);
+                    }}
+                    placeholder="Type address..."
+                    autoComplete="off"
+                  />
+                  {editing && addressQuery && addressResults.length > 0 && (
+                    <div className="absolute z-10 left-0 right-0 bg-white border rounded shadow mt-1 max-h-40 overflow-auto text-xs">
+                      {addressResults.map((r, i) => (
+                        <div
+                          key={r.place_id}
+                          className="px-3 py-2 cursor-pointer hover:bg-slate-100"
+                          onClick={() => {
+                            setProfile(v => ({
+                              ...v,
+                              address: r.display_name,
+                              lat: parseFloat(r.lat),
+                              lng: parseFloat(r.lon),
+                            }));
+                            setAddressQuery(r.display_name);
+                            setAddressResults([]);
+                          }}
+                        >
+                          {r.display_name}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {editing && addressLoading && (
+                    <div className="absolute right-2 top-2 text-xs text-slate-400">Loading...</div>
+                  )}
+                </div>
               </div>
               <div className="grid gap-2">
                 <Label>Map Location</Label>
