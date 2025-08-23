@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -14,18 +14,61 @@ export default function VendorProfile({ vendor, products, onMessage, onAddToCart
 			<Card>
 				<CardContent className="p-4 space-y-3 font-poppins tracking-tighter">
 					<div className="flex items-start justify-between gap-3">
-						<div className="min-w-0">
-							<div className="text-lg font-semibold tracking-tighter">
-								{vendor.name}
+						<div className="min-w-0 flex items-center gap-4">
+							{/* DP */}
+							<div className="flex flex-col items-center">
+								{vendor.dp ? (
+									<img
+										src={vendor.dp}
+										alt="Pharmacy DP"
+										className="h-16 w-16 object-cover rounded-full border"
+									/>
+								) : (
+									<div className="h-16 w-16 rounded-full border-2 border-dashed border-slate-300 flex items-center justify-center text-slate-300">
+										No DP
+									</div>
+								)}
 							</div>
-							<div className="text-sm text-slate-600 tracking-tighter">
-								{vendor.bio}
-							</div>
-							<div className="text-xs text-slate-500 tracking-tighter">
-								{vendor.address} • {vendor.contact}
+							<div>
+								<div className="text-lg font-semibold tracking-tighter">
+									{vendor.name}
+								</div>
+								<div className="text-sm text-slate-600 tracking-tighter">
+									{vendor.bio}
+								</div>
+								<div className="text-xs text-slate-500 tracking-tighter">
+									{vendor.address} • {vendor.contact}
+								</div>
+								{vendor.email && (
+									<div className="text-xs text-slate-500 tracking-tighter">
+										{vendor.email}
+									</div>
+								)}
 							</div>
 						</div>
 						<Badge>{vendor.etaMins || 30} mins</Badge>
+					</div>
+					{/* Uploaded images gallery */}
+					<div className="flex gap-2 mt-2">
+						{Array.isArray(vendor.images) && vendor.images.length > 0 ? (
+							vendor.images.map((img, idx) => (
+								<img
+									key={idx}
+									src={img}
+									alt={`Pharmacy ${idx + 1}`}
+									className="h-16 w-16 object-cover rounded-md border"
+								/>
+							))
+						) : (
+							[...Array(3)].map((_, idx) => (
+								<div
+									key={idx}
+									className="h-16 w-16 rounded-md border-2 border-dashed border-slate-300 flex items-center justify-center text-slate-300"
+								>
+									No Image
+								</div>
+							))
+						)}
 					</div>
 					{typeof vendor.lat === "number" && typeof vendor.lng === "number" && (
 						<MapPicker
@@ -35,7 +78,7 @@ export default function VendorProfile({ vendor, products, onMessage, onAddToCart
 							zoom={14}
 						/>
 					)}
-					<div className="flex gap-2">
+					<div className="flex gap-2 mt-2">
 						<Input
 							placeholder="Ask a question"
 							value={text}
