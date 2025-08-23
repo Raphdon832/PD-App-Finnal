@@ -95,9 +95,16 @@ export default function Profile({ me, myVendor, upsertVendor, onLogout }){
               <div className="flex flex-col items-center mr-2">
                 <div className="relative">
                   {dp ? (
-                    <img src={dp} alt="DP" className="h-16 w-16 object-cover rounded-full border" />
+                    <img src={dp} alt="DP" className="h-16 w-16 object-cover rounded-full" />
                   ) : (
-                    <div className="h-16 w-16 rounded-full bg-slate-200 flex items-center justify-center text-slate-400 border">No DP</div>
+                    <div className="h-16 w-16 rounded-full border-2 border-slate-300 bg-white flex items-center justify-center text-slate-400">
+                      {/* Dummy profile icon SVG */}
+                      <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="16" cy="16" r="15" stroke="#cbd5e1" strokeWidth="2" fill="#f1f5f9" />
+                        <circle cx="16" cy="13" r="5" fill="#cbd5e1" />
+                        <ellipse cx="16" cy="23" rx="7" ry="4" fill="#cbd5e1" />
+                      </svg>
+                    </div>
                   )}
                   {me?.role === "pharmacist" && editing && (
                     <label className="absolute bottom-0 right-0 bg-white rounded-full p-1 border cursor-pointer text-xs">
@@ -157,7 +164,7 @@ export default function Profile({ me, myVendor, upsertVendor, onLogout }){
                 {images && images.length > 0 ? (
                   images.map((img, idx) => (
                     <div key={idx} className="relative group">
-                      <img src={img} alt={`Pharmacy ${idx + 1}`} className="h-20 w-20 object-cover rounded-md border" />
+                      <img src={img} alt={`Pharmacy ${idx + 1}`} className="h-20 w-20 object-cover rounded-md" />
                       {editing && (
                         <button
                           type="button"
@@ -240,7 +247,7 @@ export default function Profile({ me, myVendor, upsertVendor, onLogout }){
               </div>
               <div className="grid gap-2">
                 <Label>Map Location</Label>
-                <div className="relative z-0 overflow-hidden rounded-md">
+                <div className="relative z-0 overflow-hidden rounded-md border border-slate-200">
                   <MapPicker
                     value={{ lat: profile.lat, lng: profile.lng }}
                     onChange={editing ? (p => setProfile(v => ({ ...v, lat: p.lat, lng: p.lng }))) : undefined}

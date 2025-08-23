@@ -21,11 +21,35 @@ export default function VendorProfile({ vendor, products, onMessage, onAddToCart
 									<img
 										src={vendor.dp}
 										alt="Pharmacy DP"
-										className="h-16 w-16 object-cover rounded-full border"
+										className="h-16 w-16 object-cover rounded-full"
 									/>
 								) : (
-									<div className="h-16 w-16 rounded-full border-2 border-dashed border-slate-300 flex items-center justify-center text-slate-300">
-										No DP
+									<div className="h-16 w-16 rounded-full border-2 border-slate-300 flex items-center justify-center text-slate-300 bg-white">
+										{/* Dummy profile icon SVG */}
+										<svg
+											width="32"
+											height="32"
+											viewBox="0 0 32 32"
+											fill="none"
+											xmlns="http://www.w3.org/2000/svg"
+										>
+											<circle
+												cx="16"
+												cy="16"
+												r="15"
+												stroke="#cbd5e1"
+												strokeWidth="2"
+												fill="#f1f5f9"
+											/>
+											<circle cx="16" cy="13" r="5" fill="#cbd5e1" />
+											<ellipse
+												cx="16"
+												cy="23"
+												rx="7"
+												ry="4"
+												fill="#cbd5e1"
+											/>
+										</svg>
 									</div>
 								)}
 							</div>
@@ -49,27 +73,18 @@ export default function VendorProfile({ vendor, products, onMessage, onAddToCart
 						<Badge>{vendor.etaMins || 30} mins</Badge>
 					</div>
 					{/* Uploaded images gallery */}
-					<div className="flex gap-2 mt-2">
-						{Array.isArray(vendor.images) && vendor.images.length > 0 ? (
-							vendor.images.map((img, idx) => (
+					{Array.isArray(vendor.images) && vendor.images.length > 0 && (
+						<div className="flex gap-2 mt-2">
+							{vendor.images.map((img, idx) => (
 								<img
 									key={idx}
 									src={img}
 									alt={`Pharmacy ${idx + 1}`}
-									className="h-16 w-16 object-cover rounded-md border"
+									className="h-16 w-16 object-cover rounded-md"
 								/>
-							))
-						) : (
-							[...Array(3)].map((_, idx) => (
-								<div
-									key={idx}
-									className="h-16 w-16 rounded-md border-2 border-dashed border-slate-300 flex items-center justify-center text-slate-300"
-								>
-									No Image
-								</div>
-							))
-						)}
-					</div>
+							))}
+						</div>
+					)}
 					{typeof vendor.lat === "number" && typeof vendor.lng === "number" && (
 						<MapPicker
 							value={{ lat: vendor.lat, lng: vendor.lng }}

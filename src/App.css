@@ -40,3 +40,11 @@
 .read-the-docs {
   color: #888;
 }
+
+input:focus, input:active,
+textarea:focus, textarea:active,
+select:focus, select:active {
+  outline: none;
+  box-shadow: 0 0 0 2px oklch(95% 0.09 220);
+  border-color: oklch(95% 0.09 220);
+}
