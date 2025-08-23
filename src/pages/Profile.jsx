@@ -12,11 +12,15 @@ export default function Profile({ me, myVendor, upsertVendor, onLogout }){
     name: myVendor?.name || me?.pharmacyName || "",
     address: myVendor?.address || me?.pharmacyAddress || "",
     contact: myVendor?.contact || me?.phone || "",
+    email: myVendor?.email || me?.email || "",
     lat: myVendor?.lat ?? me?.pharmacyLocation?.lat ?? 9.0765,
     lng: myVendor?.lng ?? me?.pharmacyLocation?.lng ?? 7.3986,
   });
   const [editing, setEditing] = useState(false);
   const [initialProfile, setInitialProfile] = useState(profile);
+  const [image, setImage] = useState(myVendor?.image || "");
+  const [dp, setDp] = useState(myVendor?.dp || "");
+  const [images, setImages] = useState(myVendor?.images || []);
 
   useEffect(() => {
     if (myVendor) {
@@ -25,6 +29,7 @@ export default function Profile({ me, myVendor, upsertVendor, onLogout }){
         name: myVendor.name || p.name,
         address: myVendor.address || p.address,
         contact: myVendor.contact || p.contact,
+        email: myVendor.email || me?.email || p.email || "",
         lat: myVendor.lat ?? p.lat,
         lng: myVendor.lng ?? p.lng,
       }));
@@ -33,9 +38,12 @@ export default function Profile({ me, myVendor, upsertVendor, onLogout }){
         name: myVendor.name || p.name,
         address: myVendor.address || p.address,
         contact: myVendor.contact || p.contact,
+        email: myVendor.email || me?.email || p.email || "",
         lat: myVendor.lat ?? p.lat,
         lng: myVendor.lng ?? p.lng,
       }));
+      setDp(myVendor.dp || "");
+      setImages(myVendor.images || []);
     }
   }, [myVendor]);
 
@@ -55,12 +63,56 @@ export default function Profile({ me, myVendor, upsertVendor, onLogout }){
       <Card>
         <CardContent className="p-4 font-poppins tracking-tighter">
           <div className="flex items-center justify-between">
-            <div>
-              <div className="text-lg font-semibold tracking-tighter">{me?.name || 'Guest'}</div>
-              <div className="text-sm text-slate-600 tracking-tighter">Role: {me?.role || 'customer'}</div>
-              {me?.pharmacyName && <div className="text-sm text-slate-600 tracking-tighter">Pharmacy: {me.pharmacyName}</div>}
+            <div className="flex items-center gap-3">
+              <div className="flex flex-col items-center mr-2">
+                <div className="relative">
+                  {dp ? (
+                    <img src={dp} alt="DP" className="h-16 w-16 object-cover rounded-full border" />
+                  ) : (
+                    <div className="h-16 w-16 rounded-full bg-slate-200 flex items-center justify-center text-slate-400 border">No DP</div>
+                  )}
+                  {me?.role === "pharmacist" && editing && (
+                    <label className="absolute bottom-0 right-0 bg-white rounded-full p-1 border cursor-pointer text-xs">
+                      <span className="sr-only">Change DP</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={e => {
+                          const f = e.target.files?.[0];
+                          if (!f) return;
+                          const fr = new FileReader();
+                          fr.onload = () => setDp(fr.result);
+                          fr.readAsDataURL(f);
+                        }}
+                      />
+                      ✎
+                    </label>
+                  )}
+                </div>
+              </div>
+              <div>
+                <div className="text-lg font-semibold tracking-tighter">{me?.name || 'Guest'}</div>
+                <div className="text-sm text-slate-600 tracking-tighter">Role: {me?.role || 'customer'}</div>
+                {me?.pharmacyName && <div className="text-sm text-slate-600 tracking-tighter">Pharmacy: {me.pharmacyName}</div>}
+                {me?.role === "pharmacist" && (
+                  <div className="text-sm text-slate-600 tracking-tighter flex items-center gap-1">
+                    Email:
+                    {editing ? (
+                      <Input
+                        type="email"
+                        value={profile.email || ""}
+                        onChange={e => setProfile(v => ({ ...v, email: e.target.value }))}
+                        className="h-7 px-2 py-1 text-xs w-auto"
+                        style={{ minWidth: 120 }}
+                      />
+                    ) : (
+                      <span>{profile.email || "-"}</span>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
-            <Button variant="outline" onClick={onLogout} className="font-poppins tracking-tighter">Log out</Button>
           </div>
         </CardContent>
       </Card>
@@ -71,6 +123,44 @@ export default function Profile({ me, myVendor, upsertVendor, onLogout }){
             <CardDescription className="tracking-tighter">Edit your pharmacy details</CardDescription>
           </CardHeader>
           <CardContent className="font-poppins tracking-tighter space-y-3">
+            {/* Gallery for up to 3 images */}
+            <div className="flex flex-col items-center gap-2 mb-2">
+              <div className="flex gap-2">
+                {images && images.length > 0 ? (
+                  images.map((img, idx) => (
+                    <div key={idx} className="relative group">
+                      <img src={img} alt={`Pharmacy ${idx + 1}`} className="h-20 w-20 object-cover rounded-md border" />
+                      {editing && (
+                        <button
+                          type="button"
+                          className="absolute top-1 right-1 bg-white/80 rounded-full p-1 text-xs text-rose-600 group-hover:bg-white"
+                          onClick={() => setImages(images.filter((_, i) => i !== idx))}
+                        >✕</button>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-xs text-slate-400">No images uploaded</div>
+                )}
+                {editing && images.length < 3 && (
+                  <label className="h-20 w-20 flex items-center justify-center border rounded-md bg-slate-100 text-blue-600 cursor-pointer hover:bg-slate-200">
+                    <span className="text-2xl">+</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={e => {
+                        const f = e.target.files?.[0];
+                        if (!f) return;
+                        const fr = new FileReader();
+                        fr.onload = () => setImages([...images, fr.result]);
+                        fr.readAsDataURL(f);
+                      }}
+                    />
+                  </label>
+                )}
+              </div>
+            </div>
             <div className="grid grid-cols-1 gap-3">
               <div className="grid gap-2">
                 <Label>Pharmacy Name</Label>
@@ -114,9 +204,12 @@ export default function Profile({ me, myVendor, upsertVendor, onLogout }){
                     bio: myVendor?.bio || "",
                     address: profile.address.trim(),
                     contact: profile.contact.trim(),
+                    email: profile.email || "",
                     etaMins: myVendor?.etaMins ?? 30,
                     lat: profile.lat,
                     lng: profile.lng,
+                    dp: dp || "",
+                    images: images || [],
                   };
                   upsertVendor(v);
                   setInitialProfile(profile);
@@ -144,6 +237,16 @@ export default function Profile({ me, myVendor, upsertVendor, onLogout }){
           )}
         </CardContent>
       </Card>
+      <div className="flex justify-start mt-2">
+        <button
+          type="button"
+          onClick={onLogout}
+          className="text-xs font-poppins tracking-tighter px-4 py-1 border border-black-300 text-red-300 hover:text-red-400 focus:outline-none bg-transparent"
+          style={{ boxShadow: "none", borderRadius: 5 }}
+        >
+          Log out
+        </button>
+      </div>
     </div>
   );
 }
