@@ -648,6 +648,8 @@ export default function App() {
             const vendor = (state.vendors || []).find(v => v.id === user.id || v.name === user.pharmacyName);
             withUid = { ...user, uid: vendor?.uid || user.uid || user.id || uid() };
           }
+          // Set global role for chat UI logic (e.g., hiding View Store button)
+          if (withUid.role) window.PD_APP_ROLE = withUid.role;
           setState((s) => ({
             ...s,
             me: withUid,

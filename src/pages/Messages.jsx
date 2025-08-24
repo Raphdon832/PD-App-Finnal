@@ -54,6 +54,7 @@ function ChatThreadScreen({
   onBack,
   resolvePhone,
   onActiveChange,
+  
 }) {
   const [text, setText] = useState("");
   const [files, setFiles] = useState([]); // { id, file, url, name, type, size, kind }
@@ -197,7 +198,7 @@ function ChatThreadScreen({
         </Button>
         <h3 className="font-semibold flex-1 truncate text-black">{partnerName}</h3>
 
-        {isVendorKnown && typeof onOpenVendor === "function" && (
+        {isVendorKnown && typeof onOpenVendor === "function" && window?.PD_APP_ROLE !== "pharmacist" && (
           <Button
             variant="ghost"
             size="sm"
@@ -459,6 +460,15 @@ export default function Messages({
     return items.sort((a, b) => b.lastAt - a.lastAt);
   }, [threads, vendorById, lastSeenAt]);
 
+  // Vendor Inbox UI Polish: Add avatars, last message preview, unread badge, and search
+  const [search, setSearch] = useState("");
+  const filteredConversations = useMemo(() => {
+    if (!search.trim()) return conversations;
+    return conversations.filter((c) =>
+      c.partnerName.toLowerCase().includes(search.trim().toLowerCase())
+    );
+  }, [conversations, search]);
+
   if (conversations.length === 0) {
     return <EmptyState title="No Chats" body="Start an enquiry from a product or vendor page to begin." />;
   }
@@ -486,20 +496,32 @@ export default function Messages({
   return (
     <div className="h-[70vh]">
       <h2 className="text-[20px] font-black tracking-tight mb-3 font-poppins">Chats</h2>
+      <Input
+        className="mb-3"
+        placeholder="Search customers..."
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+      />
       <div className="space-y-2 overflow-y-auto pr-1" style={{ maxHeight: "calc(70vh - 2rem)" }}>
-        {conversations.map((c) => (
+        {filteredConversations.map((c) => (
           <Card key={c.partnerId} className="cursor-pointer" onClick={() => setActivePartnerId(c.partnerId)}>
             <CardContent className="p-3 flex items-center justify-between font-poppins">
-              <div className="min-w-0">
-                <div className="font-medium text-sm truncate">{c.partnerName}</div>
-                <div className="text-xs text-slate-500 truncate">{c.lastPreview}</div>
+              <div className="flex items-center min-w-0 gap-2">
+                {/* Avatar: use first letter or emoji, fallback to icon */}
+                <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-lg font-bold text-slate-600">
+                  {c.partnerName?.[0]?.toUpperCase() || "👤"}
+                </div>
+                <div className="min-w-0">
+                  <div className="font-medium text-sm truncate">{c.partnerName}</div>
+                  <div className="text-xs text-slate-500 truncate">{c.lastPreview}</div>
+                </div>
               </div>
               <div className="text-right shrink-0 ml-3">
                 <div className="text-[10px] text-slate-400">
                   {c.lastAt ? new Date(c.lastAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}
                 </div>
                 {c.unread > 0 && (
-                  <div className="mt-1 inline-flex items-center justify-center min-w=[18px] h-[18px] px-1 rounded-full bg-sky-600 text-white text-[10px] font-semibold">
+                  <div className="mt-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-sky-600 text-white text-[10px] font-semibold">
                     {c.unread > 99 ? "99+" : c.unread}
                   </div>
                 )}
