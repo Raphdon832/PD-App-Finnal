@@ -76,8 +76,8 @@ export default function VendorDashboard({
 	}, [myVendor]);
 
 	const myProducts = useMemo(
-		() => products.filter((p) => myVendor && p.vendorId === myVendor.id),
-		[products, myVendor]
+		() => products.filter((p) => me && p.vendorId === me.uid),
+		[products, me]
 	);
 
 	const onPickImage = (e) => {
@@ -89,13 +89,13 @@ export default function VendorDashboard({
 	};
 	const onSubmit = () => {
 		if (!form.name.trim()) return alert("Enter product name");
-		if (!myVendor?.id) return alert("Save vendor profile first");
+		if (!me?.uid) return alert("User UID missing. Please re-login.");
 		addProduct({
 			...form,
 			price: Number(form.price) || 0,
 			stock: Number(form.stock) || 0,
-			vendorId: myVendor.id,
-			vendorName: myVendor.name,
+			vendorId: me.uid, // Use pharmacist UID for vendorId
+			vendorName: myVendor?.name || me?.pharmacyName || "",
 		});
 		setForm({
 			name: "",
