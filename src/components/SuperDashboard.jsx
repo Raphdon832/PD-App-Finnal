@@ -19,8 +19,19 @@ export default function SuperDashboard() {
     };
   }, []);
 
+  // Prevent all copy and text selection
+  useEffect(() => {
+    const prevent = e => e.preventDefault();
+    document.addEventListener('copy', prevent, true);
+    document.addEventListener('selectstart', prevent, true);
+    return () => {
+      document.removeEventListener('copy', prevent, true);
+      document.removeEventListener('selectstart', prevent, true);
+    };
+  }, []);
+
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-6 max-w-5xl mx-auto" style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}>
       <h1 className="text-2xl font-bold mb-6">Super User Dashboard</h1>
       <div className="mb-8">
         <h2 className="text-xl font-semibold mb-2">Users</h2>

@@ -7,6 +7,10 @@ import { Button } from "@/components/ui/button";
 import { loadFromLS, saveToLS, uid } from "@/lib/utils";
 import { seedVendors as baseSeedVendors, seedProducts } from "@/lib/data";
 import pdLogo from "@/assets/pd-logo.png";
+import { listenToProducts, addProduct as addProductToFirestore, updateProduct, deleteProduct } from "@/lib/firebase-products";
+import { signUpWithEmail, signInWithEmailAndEnsureProfile } from "@/lib/auth-firebase";
+import { listenToOrders } from "@/lib/firebase-orders";
+import { listenToProfiles } from "@/lib/firebase-profiles";
 
 /* ---- Custom SVGs as RAW strings (no SVGR required) ---- */
 import HomeSvgRaw from "@/assets/icons/home.svg?raw";
@@ -216,7 +220,7 @@ export default function App() {
       screenParams: {},
       me: null,
       vendors: seedVendors,
-      products: seedProducts,
+      products: [], // Start with empty, will be filled by Firestore
       cart: [],
       orders: [],
       conversations: [],
@@ -331,6 +335,42 @@ export default function App() {
     );
   };
 
+  // --- Real-time Firestore products sync ---
+  useEffect(() => {
+    const unsub = listenToProducts((products) => {
+      setState((s) => ({ ...s, products }));
+    });
+    return () => unsub && unsub();
+  }, []);
+
+  // --- Real-time Firestore orders sync ---
+  useEffect(() => {
+    const unsub = listenToOrders((orders) => {
+      setState((s) => ({ ...s, orders }));
+    });
+    return () => unsub && unsub();
+  }, []);
+
+  // --- Real-time Firestore profiles sync (vendors) ---
+  useEffect(() => {
+    const unsub = listenToProfiles((profiles) => {
+      setState((s) => ({ ...s, vendors: profiles }));
+    });
+    return () => unsub && unsub();
+  }, []);
+
+  // Add product: always add to Firestore
+  const addProduct = async (p) => {
+    await addProductToFirestore(p);
+    // No local state update needed; Firestore listener will update products
+  };
+
+  // Remove product: always delete from Firestore
+  const removeProduct = async (pid) => {
+    await deleteProduct(pid);
+    // No local state update needed; Firestore listener will update products
+  };
+
   // ---- Data helpers
   const vendorById = useMemo(
     () => Object.fromEntries(state.vendors.map((v) => [v.uid || v.id, v])),
@@ -419,10 +459,6 @@ export default function App() {
       }
       return { ...s, vendors, me };
     });
-
-  const addProduct = (p) => setState((s) => ({ ...s, products: [{ ...p, id: uid() }, ...s.products] }));
-  const removeProduct = (pid) =>
-    setState((s) => ({ ...s, products: s.products.filter((p) => p.id !== pid) }));
 
   /* -------------------------- Messaging -------------------------- */
   const getOrCreateConversation = React.useCallback(
@@ -833,6 +869,18 @@ export default function App() {
   const locText =
     state.userPlace?.label ||
     (state.userLoc ? `${state.userLoc.lat.toFixed(2)}°, ${state.userLoc.lng.toFixed(2)}°` : "Location off");
+
+  useEffect(() => {
+    const prevent = e => e.preventDefault();
+    document.addEventListener('copy', prevent, true);
+    document.addEventListener('cut', prevent, true);
+    document.addEventListener('selectstart', prevent, true);
+    return () => {
+      document.removeEventListener('copy', prevent, true);
+      document.removeEventListener('cut', prevent, true);
+      document.removeEventListener('selectstart', prevent, true);
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-white text-slate-900">

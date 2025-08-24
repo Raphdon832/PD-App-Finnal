@@ -5,9 +5,7 @@ import { Label } from "@/components/ui/label";
 import pdLogo from "@/assets/pd-logo.png";
 import { ArrowLeft } from "lucide-react";
 import MapPicker from "@/components/MapPicker";
-import { auth, db } from "@/lib/firebase";
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { signUpWithEmail, signInWithEmailAndEnsureProfile } from "@/lib/auth-firebase";
 
 function isValidEmail(email) {
   return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
@@ -30,44 +28,37 @@ export default function AuthFlow({ role = "customer", onDone, onBack }) {
       if (mode === "signin") {
         if (!email.trim()) throw new Error("Enter your email");
         if (!password) throw new Error("Enter your password");
-        const cred = await signInWithEmailAndPassword(auth, email, password);
-        const userDoc = await getDoc(doc(db, "users", cred.user.uid));
-        const userData = userDoc.exists() ? userDoc.data() : {};
-        if (userData.role !== role) throw new Error(`This account is registered as ${userData.role}`);
-        onDone({ ...userData, uid: cred.user.uid });
+        const { uid, role: userRole } = await signInWithEmailAndEnsureProfile({ email, password });
+        if (userRole !== role) throw new Error(`This account is registered as ${userRole}`);
+        onDone({ uid, role: userRole });
         return;
       }
       if (!name.trim()) throw new Error(isCustomer ? "Enter your display name" : "Enter contact name");
       if (!email.trim() || !isValidEmail(email)) throw new Error("Enter a valid email");
       if (!password || password.length < 7) throw new Error("Password must be at least 7 characters");
       if (isCustomer) {
-        const cred = await createUserWithEmailAndPassword(auth, email, password);
-        const userObj = {
-          role: "customer",
-          name: name.trim(),
-          email,
-          phone,
-          createdAt: new Date().toISOString(),
-        };
-        await setDoc(doc(db, "users", cred.user.uid), userObj);
-        onDone({ ...userObj, uid: cred.user.uid });
+        const { uid, role: userRole } = await signUpWithEmail({ email, password, phone, role: "customer" });
+        onDone({ uid, role: userRole, name: name.trim(), email, phone });
       } else {
         if (!pharmacyName.trim()) throw new Error("Enter pharmacy name");
         if (!address.trim()) throw new Error("Enter pharmacy address");
         if (!pin?.lat || !pin?.lng) throw new Error("Tap the map to set the pharmacy location");
-        const cred = await createUserWithEmailAndPassword(auth, email, password);
-        const userObj = {
-          role: "pharmacist",
+        const { uid, role: userRole } = await signUpWithEmail({
+          email,
+          password,
+          phone,
+          role: "pharmacist"
+        });
+        onDone({
+          uid,
+          role: userRole,
           name: name.trim(),
           email,
           phone,
           pharmacyName: pharmacyName.trim(),
           pharmacyAddress: address.trim(),
-          pharmacyLocation: { lat: pin.lat, lng: pin.lng },
-          createdAt: new Date().toISOString(),
-        };
-        await setDoc(doc(db, "users", cred.user.uid), userObj);
-        onDone({ ...userObj, uid: cred.user.uid });
+          pharmacyLocation: { lat: pin.lat, lng: pin.lng }
+        });
       }
     } catch (e) {
       alert(e.message || "Something went wrong");

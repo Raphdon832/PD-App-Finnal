@@ -91,3 +91,11 @@ nav[role="navigation"], nav.fixed { padding-bottom: var(--safe-bottom); }
 
 /* Keep Leaflet popups or controls if you want them above content — adjust if needed */
 /* .leaflet-popup { z-index: 60 !important; } */
+
+/* Prevent text selection and copying globally */
+html, body, #root, .app, * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+}
