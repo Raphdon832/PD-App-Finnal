@@ -44,6 +44,51 @@ function QuotedMini({ q }) {
   );
 }
 
+// Message status icons
+const StatusTick = ({ status }) => {
+  if (status === 'sending') {
+    return (
+      <svg className="inline w-4 h-4 animate-spin text-slate-400 ml-1" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" /></svg>
+    );
+  }
+  if (status === 'sent') {
+    return (
+      <svg className="inline w-4 h-4 text-slate-400 ml-1" viewBox="0 0 20 20"><path d="M7 10l2 2 4-4" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+    );
+  }
+  if (status === 'delivered') {
+    return (
+      <svg className="inline w-4 h-4 text-slate-400 ml-1" viewBox="0 0 20 20"><path d="M5 10l3 3 7-7" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/><path d="M7 13l2 2 4-4" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+    );
+  }
+  if (status === 'read') {
+    return (
+      <svg className="inline w-4 h-4 text-sky-500 ml-1" viewBox="0 0 20 20"><path d="M5 10l3 3 7-7" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/><path d="M7 13l2 2 4-4" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+    );
+  }
+  return null;
+};
+
+// Typing indicator state (simulate for demo)
+function useTypingIndicator(partnerId, isActive) {
+  const [typing, setTyping] = useState(false);
+  useEffect(() => {
+    if (!isActive) return;
+    let timeout;
+    const handler = () => {
+      setTyping(true);
+      clearTimeout(timeout);
+      timeout = setTimeout(() => setTyping(false), 2000);
+    };
+    window.addEventListener('PD_TYPING_'+partnerId, handler);
+    return () => {
+      window.removeEventListener('PD_TYPING_'+partnerId, handler);
+      clearTimeout(timeout);
+    };
+  }, [partnerId, isActive]);
+  return typing;
+}
+
 function ChatThreadScreen({
   partnerId,
   partnerName,
@@ -54,9 +99,9 @@ function ChatThreadScreen({
   onBack,
   resolvePhone,
   onActiveChange,
-  
 }) {
   const [text, setText] = useState("");
+  const textareaRef = useRef(null);
   const [files, setFiles] = useState([]); // { id, file, url, name, type, size, kind }
   const [replyingTo, setReplyingTo] = useState(null); // {id, text, from, at}
   const fileInputRef = useRef(null);
@@ -171,6 +216,7 @@ function ChatThreadScreen({
       return prev.filter((x) => x.id !== id);
     });
 
+  // Reset textarea height after send
   const sendNow = () => {
     const trimmed = text.trim();
     if (!trimmed && files.length === 0) return;
@@ -184,10 +230,32 @@ function ChatThreadScreen({
     setText("");
     setFiles([]);
     setReplyingTo(null);
+    if (textareaRef.current) {
+      textareaRef.current.style.transition = 'height 0.18s cubic-bezier(.4,0,.2,1)';
+      textareaRef.current.style.height = '36px';
+    }
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   };
 
   const canSend = text.trim().length > 0 || files.length > 0;
+  const typing = useTypingIndicator(partnerId, true);
+
+  // Send typing event (simulate, real app would use websocket)
+  const onInput = (e) => {
+    setText(e.target.value);
+    if (e.target.value.length > 0) {
+      window.dispatchEvent(new Event('PD_TYPING_'+partnerId));
+    }
+  };
+
+  // Emoji picker (native)
+  const onEmoji = () => {
+    if (navigator.userAgent.includes('Mac')) {
+      alert('Press Control + Command + Space to open emoji picker.');
+    } else {
+      alert('Use your OS emoji picker.');
+    }
+  };
 
   return (
     <div className="grid grid-rows-[auto_1fr_auto] h-[100dvh] overflow-hidden">
@@ -197,7 +265,7 @@ function ChatThreadScreen({
           <ArrowLeft className="h-5 w-5 text-black" />
         </Button>
         <h3 className="font-semibold flex-1 truncate text-black">{partnerName}</h3>
-
+        {/* Remove View Store for pharmacists */}
         {isVendorKnown && typeof onOpenVendor === "function" && window?.PD_APP_ROLE !== "pharmacist" && (
           <Button
             variant="ghost"
@@ -210,7 +278,6 @@ function ChatThreadScreen({
             View store
           </Button>
         )}
-
         {isVendorKnown && phone && (
           <Button
             as="a"
@@ -224,7 +291,6 @@ function ChatThreadScreen({
           </Button>
         )}
       </div>
-
       {/* Messages area */}
       <div
         className="overflow-y-auto overscroll-contain px-4 py-2 bg-cover bg-center font-poppins text-[12px]"
@@ -239,10 +305,8 @@ function ChatThreadScreen({
             const thisDate = new Date(msg.at || 0);
             const prev = thread[i - 1];
             const needDateStamp = i === 0 || !isSameDay(thisDate, new Date(prev?.at || 0));
-
             const isDragging = dragId === msg.id;
             const translate = isDragging ? dragX : 0;
-
             return (
               <React.Fragment key={msg.id}>
                 {needDateStamp && (
@@ -252,9 +316,7 @@ function ChatThreadScreen({
                     </span>
                   </div>
                 )}
-
                 <div className={`mb-3 flex ${mine ? "justify-end" : "justify-start"}`}>
-                  {/* Keep THIS flex child static. We only transform the inner .drag-wrap below */}
                   <div className="max-w-[80%] min-w-0 relative" style={{ backfaceVisibility: "hidden" }}>
                     <div
                       className="relative drag-wrap transform-gpu will-change-transform select-none"
@@ -269,21 +331,17 @@ function ChatThreadScreen({
                         backfaceVisibility: "hidden",
                       }}
                     >
-                      {/* Swipe indicator */}
                       {isDragging && translate > 12 && (
                         <div className="absolute -left-7 top-1/2 -translate-y-1/2 rounded-full w-6 h-6 bg-slate-800/80 text-white flex items-center justify-center">
                           ↩
                         </div>
                       )}
-
-                      {/* Bubble */}
                       <div
                         className={`px-3 py-2 text-[12px] leading-snug break-words shadow ${
                           mine ? "bg-[#000000] text-white rounded-lg rounded-br-none" : "bg-white text-black rounded-lg rounded-bl-none"
                         }`}
                       >
                         <QuotedMini q={msg.replyTo} />
-
                         {Array.isArray(msg.attachments) && msg.attachments.length > 0 && (
                           <div
                             className={`mb-2 grid gap-2 ${
@@ -311,13 +369,12 @@ function ChatThreadScreen({
                             )}
                           </div>
                         )}
-
                         {msg.text}
                       </div>
-
                       {msg.at && (
                         <div className={`mt-1 text-[10px] text-slate-400 ${mine ? "text-right" : "text-left"}`}>
                           {new Date(msg.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          {mine && <StatusTick status={msg.status || 'sent'} />}
                         </div>
                       )}
                     </div>
@@ -327,9 +384,11 @@ function ChatThreadScreen({
             );
           })
         )}
+        {typing && !text && (
+          <div className="px-4 pb-2 text-xs text-slate-500 font-poppins animate-pulse">{partnerName} is typing…</div>
+        )}
         <div ref={endRef} />
       </div>
-
       {/* Composer */}
       <div
         className="px-4 py-2 bg-white border-t border-[#F0F0F0]"
@@ -354,7 +413,6 @@ function ChatThreadScreen({
             </button>
           </div>
         )}
-
         {files.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-2">
             {files.map((f) =>
@@ -380,33 +438,34 @@ function ChatThreadScreen({
             )}
           </div>
         )}
-
         <div className="flex items-center gap-2">
           <Button type="button" variant="ghost" size="icon" onClick={pickFiles} className="rounded-full">
             <Paperclip className="h-5 w-5" />
           </Button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
-            className="hidden"
-            onChange={onChooseFiles}
-          />
-
-          <Input
-            className="flex-1 rounded-2xl font-poppins text-[12px] size-sm"
+          <textarea
+            ref={textareaRef}
+            className="flex-1 rounded-md font-poppins text-[12px] size-sm resize-none min-h-[36px] max-h-[120px] py-2 px-3 border border-slate-200 focus:border-sky-300 focus:ring-2 focus:ring-sky-100 transition-all duration-200"
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={onInput}
             placeholder="Message"
-            onKeyDown={(e) => {
+            rows={1}
+            style={{ overflow: 'hidden', borderRadius: '6px' }}
+            onInput={e => {
+              e.target.style.transition = 'height 0.18s cubic-bezier(.4,0,.2,1)';
+              e.target.style.height = 'auto';
+              if (e.target.value.length === 0) {
+                e.target.style.height = '36px';
+              } else {
+                e.target.style.height = e.target.scrollHeight + 'px';
+              }
+            }}
+            onKeyDown={e => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 sendNow();
               }
             }}
           />
-
           <Button
             type="button"
             variant="ghost"
@@ -440,6 +499,18 @@ export default function Messages({
     [vendors]
   );
 
+  const [search, setSearch] = useState("");
+  // Simulate online status: random online for demo
+  const onlineMap = useMemo(() => {
+    const map = {};
+    Object.keys(threads).forEach((id, i) => {
+      map[id] = i % 2 === 0; // alternate online/offline
+    });
+    return map;
+  }, [threads]);
+
+  // Track unread per chat
+  const [openedChats, setOpenedChats] = useState({});
   const conversations = useMemo(() => {
     const items = Object.entries(threads).map(([partnerId, msgs]) => {
       const last = msgs[msgs.length - 1];
@@ -449,25 +520,29 @@ export default function Messages({
       const lastPreview =
         last?.text ||
         (last?.attachments?.length ? `${last.attachments.length} attachment${last.attachments.length > 1 ? "s" : ""}` : "No messages yet");
-
-      const unread = msgs.reduce((acc, m) => {
-        const t = m.at ? new Date(m.at).getTime() : 0;
-        return acc + (m.from === "them" && t > lastSeenAt ? 1 : 0);
-      }, 0);
-
+      // Unread: only count if chat not opened
+      let unread = 0;
+      if (!openedChats[partnerId]) {
+        unread = msgs.reduce((acc, m) => {
+          const t = m.at ? new Date(m.at).getTime() : 0;
+          return acc + (m.from === "them" && t > lastSeenAt ? 1 : 0);
+        }, 0);
+      }
       return { partnerId, partnerName, isVendorKnown: !!partnerVendor, lastAt, lastPreview, unread, count: msgs.length };
     });
     return items.sort((a, b) => b.lastAt - a.lastAt);
-  }, [threads, vendorById, lastSeenAt]);
+  }, [threads, vendorById, lastSeenAt, openedChats]);
 
-  // Vendor Inbox UI Polish: Add avatars, last message preview, unread badge, and search
-  const [search, setSearch] = useState("");
   const filteredConversations = useMemo(() => {
     if (!search.trim()) return conversations;
-    return conversations.filter((c) =>
-      c.partnerName.toLowerCase().includes(search.trim().toLowerCase())
-    );
-  }, [conversations, search]);
+    const q = search.trim().toLowerCase();
+    return conversations.filter((c) => {
+      if (c.partnerName.toLowerCase().includes(q)) return true;
+      // Also search messages in the thread
+      const msgs = threads[c.partnerId] || [];
+      return msgs.some(m => (m.text || '').toLowerCase().includes(q));
+    });
+  }, [conversations, search, threads]);
 
   if (conversations.length === 0) {
     return <EmptyState title="No Chats" body="Start an enquiry from a product or vendor page to begin." />;
@@ -476,6 +551,13 @@ export default function Messages({
   const [activePartnerId, setActivePartnerId] = useState(null);
   const activeThread = activePartnerId ? threads[activePartnerId] || [] : [];
   const activePartnerVendor = activePartnerId ? vendorById[activePartnerId] : null;
+
+  // Mark chat as opened (reset unread) when opened
+  useEffect(() => {
+    if (activePartnerId) {
+      setOpenedChats((prev) => ({ ...prev, [activePartnerId]: true }));
+    }
+  }, [activePartnerId]);
 
   if (activePartnerId) {
     return (
@@ -495,7 +577,7 @@ export default function Messages({
 
   return (
     <div className="h-[70vh]">
-      <h2 className="text-[20px] font-black tracking-tight mb-3 font-poppins">Chats</h2>
+      <h2 className="text-[25px] font-black tracking-tight mb-3 font-poppins">Messages</h2>
       <Input
         className="mb-3"
         placeholder="Search customers..."
@@ -507,12 +589,9 @@ export default function Messages({
           <Card key={c.partnerId} className="cursor-pointer" onClick={() => setActivePartnerId(c.partnerId)}>
             <CardContent className="p-3 flex items-center justify-between font-poppins">
               <div className="flex items-center min-w-0 gap-2">
-                {/* Avatar: use first letter or emoji, fallback to icon */}
-                <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-lg font-bold text-slate-600">
-                  {c.partnerName?.[0]?.toUpperCase() || "👤"}
-                </div>
+                {/* Avatar removed. Only show name and preview */}
                 <div className="min-w-0">
-                  <div className="font-medium text-sm truncate">{c.partnerName}</div>
+                  <div className={`font-medium text-sm truncate ${onlineMap[c.partnerId] ? 'text-sky-600' : ''}`}>{c.partnerName}</div>
                   <div className="text-xs text-slate-500 truncate">{c.lastPreview}</div>
                 </div>
               </div>
@@ -521,7 +600,7 @@ export default function Messages({
                   {c.lastAt ? new Date(c.lastAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}
                 </div>
                 {c.unread > 0 && (
-                  <div className="mt-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-sky-600 text-white text-[10px] font-semibold">
+                  <div className="mt-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-semibold">
                     {c.unread > 99 ? "99+" : c.unread}
                   </div>
                 )}
