@@ -677,13 +677,8 @@ export default function App() {
         onBack={() => go("landing")}
         onDone={(user) => {
           let withUid = user;
-          if (user.role === "customer") {
-            withUid = { ...user, uid: user.uid || user.id || uid() };
-          } else if (user.role === "pharmacist") {
-            // Ensure pharmacist's me.uid matches their vendor UID if possible
-            const vendor = (state.vendors || []).find(v => v.id === user.id || v.name === user.pharmacyName);
-            withUid = { ...user, uid: vendor?.uid || user.uid || user.id || uid() };
-          }
+          // Always enforce a UID for both roles
+          withUid = { ...user, uid: user.uid || user.id || uid() };
           // Set global role for chat UI logic (e.g., hiding View Store button)
           if (withUid.role) window.PD_APP_ROLE = withUid.role;
           setState((s) => ({
