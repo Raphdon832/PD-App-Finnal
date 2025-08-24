@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { MessageSquare, ArrowLeft, Store, Phone, Paperclip, X } from "lucide-react";
 import SendIconRaw from "@/assets/icons/Send Button.svg?raw";
+import { listenToConversations, listenToMessages, sendMessage, createConversation } from '@/lib/firebase-chat';
 
 function isSameDay(a, b) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
@@ -492,6 +493,7 @@ export default function Messages({
   resolvePhone,
   onActiveThreadChange,
   lastSeenAt = 0,
+  me,
 }) {
   // IMPORTANT: map by uid || id so both work
   const vendorById = useMemo(
@@ -544,12 +546,34 @@ export default function Messages({
     });
   }, [conversations, search, threads]);
 
+  // Firestore chat state
+  const [fsConversations, setFsConversations] = useState([]);
+  const [fsThreads, setFsThreads] = useState({});
+  useEffect(() => {
+    if (!me?.id || !me?.role) return;
+    const unsub = listenToConversations(me.id, me.role, setFsConversations);
+    return unsub;
+  }, [me]);
+  useEffect(() => {
+    // Listen to messages for each conversation
+    const unsubs = [];
+    fsConversations.forEach(conv => {
+      unsubs.push(listenToMessages(conv.id, msgs => {
+        setFsThreads(prev => ({ ...prev, [conv.id]: msgs }));
+      }));
+    });
+    return () => unsubs.forEach(fn => fn());
+  }, [fsConversations]);
+
+  // Use Firestore threads if available
+  const threadsToUse = Object.keys(fsThreads).length ? fsThreads : threads;
+
   if (conversations.length === 0) {
     return <EmptyState title="No Chats" body="Start an enquiry from a product or vendor page to begin." />;
   }
 
   const [activePartnerId, setActivePartnerId] = useState(null);
-  const activeThread = activePartnerId ? threads[activePartnerId] || [] : [];
+  const activeThread = activePartnerId ? threadsToUse[activePartnerId] || [] : [];
   const activePartnerVendor = activePartnerId ? vendorById[activePartnerId] : null;
 
   // Mark chat as opened (reset unread) when opened
@@ -577,7 +601,7 @@ export default function Messages({
 
   return (
     <div className="h-[70vh]">
-      <h2 className="text-[25px] font-black tracking-tight mb-3 font-poppins">Messages</h2>
+      <h2 className="text-[25px] font-black tracking-tight mb-3 font-poppins">My Messages</h2>
       <Input
         className="mb-3"
         placeholder="Search customers..."

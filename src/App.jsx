@@ -746,6 +746,7 @@ export default function App() {
           resolvePhone={resolvePhone}
           onActiveThreadChange={onActiveThreadChange}
           lastSeenAt={state.lastMessagesSeenAt}
+          me={me}
         />
       ),
     vendorDashboard: (
