@@ -174,7 +174,12 @@ function ChatThreadScreen({
     const trimmed = text.trim();
     if (!trimmed && files.length === 0) return;
     const atts = files.map((a) => ({ name: a.name, type: a.type, size: a.size, url: a.url, kind: a.kind }));
-    onSend(partnerId, trimmed, atts, replyingTo ? { id: replyingTo.id, text: replyingTo.text, from: replyingTo.from, at: replyingTo.at } : null);
+    onSend(
+      partnerId,
+      trimmed,
+      atts,
+      replyingTo ? { id: replyingTo.id, text: replyingTo.text, from: replyingTo.from, at: replyingTo.at } : null
+    );
     setText("");
     setFiles([]);
     setReplyingTo(null);
@@ -241,7 +246,9 @@ function ChatThreadScreen({
               <React.Fragment key={msg.id}>
                 {needDateStamp && (
                   <div className="my-3 flex justify-center">
-                    <span className="text-[11px] px-3 py-1 rounded-full bg-black/10 text-slate-700">{dayLabel(thisDate)}</span>
+                    <span className="text-[11px] px-3 py-1 rounded-full bg-black/10 text-slate-700">
+                      {dayLabel(thisDate)}
+                    </span>
                   </div>
                 )}
 
@@ -269,18 +276,34 @@ function ChatThreadScreen({
                       )}
 
                       {/* Bubble */}
-                      <div className={`px-3 py-2 text-[12px] leading-snug break-words shadow ${mine ? "bg-[#000000] text-white rounded-lg rounded-br-none" : "bg-white text-black rounded-lg rounded-bl-none"}`}>
+                      <div
+                        className={`px-3 py-2 text-[12px] leading-snug break-words shadow ${
+                          mine ? "bg-[#000000] text-white rounded-lg rounded-br-none" : "bg-white text-black rounded-lg rounded-bl-none"
+                        }`}
+                      >
                         <QuotedMini q={msg.replyTo} />
 
                         {Array.isArray(msg.attachments) && msg.attachments.length > 0 && (
-                          <div className={`mb-2 grid gap-2 ${msg.attachments.filter((a) => a.kind === "image").length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
+                          <div
+                            className={`mb-2 grid gap-2 ${
+                              msg.attachments.filter((a) => a.kind === "image").length > 1 ? "grid-cols-2" : "grid-cols-1"
+                            }`}
+                          >
                             {msg.attachments.map((a, idx) =>
                               a.kind === "image" ? (
                                 <a key={idx} href={a.url} target="_blank" rel="noreferrer">
                                   <img src={a.url} alt={a.name || "image"} className="w-full h-40 object-cover rounded-xl" />
                                 </a>
                               ) : (
-                                <a key={idx} href={a.url} target="_blank" rel="noreferrer" className={`px-3 py-2 rounded-lg text-xs ${mine ? "bg-white/20 text-white" : "bg-slate-100 text-slate-700"}`}>
+                                <a
+                                  key={idx}
+                                  href={a.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className={`px-3 py-2 rounded-lg text-xs ${
+                                    mine ? "bg-white/20 text-white" : "bg-slate-100 text-slate-700"
+                                  }`}
+                                >
                                   {a.name || "attachment"}
                                 </a>
                               )
@@ -314,10 +337,18 @@ function ChatThreadScreen({
         {replyingTo && (
           <div className="mb-2 flex items-center justify-between rounded-lg bg-slate-100 border pl-3 pr-2 py-2">
             <div className="min-w-0 text-xs">
-              <div className="font-medium text-slate-700 mb-0.5">Replying to {replyingTo.from === "me" ? "you" : "them"}</div>
-              <div className="truncate text-slate-600 max-w-[75vw]">{replyingTo.text || "(attachment)"}</div>
+              <div className="font-medium text-slate-700 mb-0.5">
+                Replying to {replyingTo.from === "me" ? "you" : "them"}
+              </div>
+              <div className="truncate text-slate-600 max-w-[75vw]">
+                {replyingTo.text || "(attachment)"}
+              </div>
             </div>
-            <button className="ml-3 rounded-full p-1 hover:bg-slate-200" onClick={() => setReplyingTo(null)} aria-label="Cancel reply">
+            <button
+              className="ml-3 rounded-full p-1 hover:bg-slate-200"
+              onClick={() => setReplyingTo(null)}
+              aria-label="Cancel reply"
+            >
               <X className="h-4 w-4 text-slate-600" />
             </button>
           </div>
@@ -329,7 +360,11 @@ function ChatThreadScreen({
               f.kind === "image" ? (
                 <div key={f.id} className="relative">
                   <img src={f.url} alt={f.name} className="h-16 w-16 object-cover rounded-xl border" />
-                  <button onClick={() => removeFile(f.id)} className="absolute -top-2 -right-2 bg-black/70 text-white rounded-full p-1" aria-label="Remove">
+                  <button
+                    onClick={() => removeFile(f.id)}
+                    className="absolute -top-2 -right-2 bg-black/70 text-white rounded-full p-1"
+                    aria-label="Remove"
+                  >
                     <X className="h-3 w-3" />
                   </button>
                 </div>
@@ -398,7 +433,11 @@ export default function Messages({
   onActiveThreadChange,
   lastSeenAt = 0,
 }) {
-  const vendorById = useMemo(() => Object.fromEntries(vendors.map((v) => [v.id, v])), [vendors]);
+  // IMPORTANT: map by uid || id so both work
+  const vendorById = useMemo(
+    () => Object.fromEntries(vendors.map((v) => [v.uid || v.id, v])),
+    [vendors]
+  );
 
   const conversations = useMemo(() => {
     const items = Object.entries(threads).map(([partnerId, msgs]) => {
@@ -407,7 +446,8 @@ export default function Messages({
       const partnerName = partnerVendor ? partnerVendor.name : `Customer ${String(partnerId).slice(0, 6)}`;
       const lastAt = last?.at ? new Date(last.at).getTime() : 0;
       const lastPreview =
-        last?.text || (last?.attachments?.length ? `${last.attachments.length} attachment${last.attachments.length > 1 ? "s" : ""}` : "No messages yet");
+        last?.text ||
+        (last?.attachments?.length ? `${last.attachments.length} attachment${last.attachments.length > 1 ? "s" : ""}` : "No messages yet");
 
       const unread = msgs.reduce((acc, m) => {
         const t = m.at ? new Date(m.at).getTime() : 0;
@@ -459,7 +499,7 @@ export default function Messages({
                   {c.lastAt ? new Date(c.lastAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}
                 </div>
                 {c.unread > 0 && (
-                  <div className="mt-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-sky-600 text-white text-[10px] font-semibold">
+                  <div className="mt-1 inline-flex items-center justify-center min-w=[18px] h-[18px] px-1 rounded-full bg-sky-600 text-white text-[10px] font-semibold">
                     {c.unread > 99 ? "99+" : c.unread}
                   </div>
                 )}

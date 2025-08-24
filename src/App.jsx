@@ -1,5 +1,5 @@
 // src/App.jsx
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MapPin, Timer, CheckCircle, AlertTriangle, Phone } from "lucide-react";
 
@@ -74,6 +74,36 @@ import VendorDashboard from "@/pages/VendorDashboard";
 import VendorProfile from "@/pages/VendorProfile";
 import Profile from "@/pages/Profile";
 
+/* ===== Stable ID helpers (declared early to avoid TDZ) ===== */
+const getVendorById = (vendors, id) => (vendors || []).find(v => v?.id === id) || null;
+
+const normalizeVendorId = (vendors, anyId) => {
+  const v = getVendorById(vendors, anyId);
+  return (v && v.uid) ? v.uid : String(anyId ?? "");
+};
+
+const getVendorForPharm = (me, vendors) =>
+  me?.role === "pharmacist"
+    ? (vendors || []).find(v => (v?.uid || v?.id) === (me?.uid || me?.id)) || null
+    : null;
+
+const getVendorForPharm2 = getVendorForPharm; // back-compat
+const getVendorId = (me, vendors) => {
+  if (me?.role === "pharmacist") {
+    // Find vendor by pharmacist's id or pharmacyName
+    let v = null;
+    if (me.pharmacyName) {
+      v = (vendors || []).find(x => x.name === me.pharmacyName || x.id === me.id);
+    } else {
+      v = (vendors || []).find(x => x.id === me.id);
+    }
+    return v?.id || null;
+  }
+  return null;
+};
+const getCustomerId = (me) => me?.id || null;
+
+
 const toRad = (d) => (d * Math.PI) / 180;
 function haversineKm(a, b) {
   if (!a || !b) return null;
@@ -102,7 +132,7 @@ const seedVendors = baseSeedVendors.map((v) => {
   return v;
 });
 
-/* small cache for reverse geocoding */
+/* reverse geocoding (OpenStreetMap) */
 async function reverseGeocode(lat, lng) {
   try {
     const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(
@@ -142,12 +172,8 @@ async function reverseGeocode(lat, lng) {
 
 /* ------------------- identity + helpers ------------------- */
 const asArray = (v) => (Array.isArray(v) ? v : []);
-const getVendorForPharm = (me, vendors) =>
-  me?.role === "pharmacist"
-    ? vendors.find((v) => v.uid === (me.uid || me.id)) || null
-    : null;
-const getCustomerId = (me) => me?.uid || me?.id || null;
-const getVendorId = (me, vendors) => getVendorForPharm(me, vendors)?.uid || null;
+// (Do NOT redeclare getVendorForPharm here; it’s defined above)
+//const getCustomerId = (me) => me?.uid || me?.id || null;
 const seenKeyFor = (me, vendors) => {
   if (!me) return null;
   if (me.role === "pharmacist")
@@ -183,6 +209,7 @@ function useDisableIOSZoom() {
 
 export default function App() {
   useDisableIOSZoom();
+
   const [state, setState] = React.useState(() =>
     loadFromLS("PD_STATE", {
       screen: "landing",
@@ -202,6 +229,7 @@ export default function App() {
 
   const [hideNavForChatThread, setHideNavForChatThread] = React.useState(false);
 
+  // Ensure conversations is always an array
   useEffect(() => {
     setState((s) =>
       Array.isArray(s.conversations) ? s : { ...s, conversations: [] }
@@ -210,6 +238,7 @@ export default function App() {
 
   useEffect(() => saveToLS("PD_STATE", state), [state]);
 
+  // Geolocation
   useEffect(() => {
     if (!("geolocation" in navigator)) return;
     navigator.geolocation.getCurrentPosition(
@@ -222,6 +251,7 @@ export default function App() {
     );
   }, []);
 
+  // Reverse geocode
   useEffect(() => {
     let cancelled = false;
     async function run() {
@@ -237,10 +267,11 @@ export default function App() {
 
   const me = state.me;
   const myVendor = React.useMemo(
-    () => getVendorForPharm(me, state.vendors),
+    () => getVendorById(state.vendors, getVendorId(me, state.vendors)),
     [me, state.vendors]
   );
 
+  // Ensure customers have a uid
   useEffect(() => {
     if (!me) return;
     if (me.role === "customer" && !me.uid) {
@@ -248,12 +279,30 @@ export default function App() {
     }
   }, [me]);
 
+  // Ensure pharmacist's me.uid always matches vendor's UID
+  useEffect(() => {
+    if (!me || me.role !== "pharmacist") return;
+    // Find vendor by pharmacyName, id, or uid
+    let v = null;
+    if (me.pharmacyName) {
+      v = state.vendors.find(
+        (x) => x.name === me.pharmacyName || x.id === me.id
+      );
+    } else {
+      v = state.vendors.find((x) => x.id === me.id);
+    }
+    if (v && me.uid !== v.uid) {
+      setState((s) => ({ ...s, me: { ...s.me, uid: v.uid } }));
+    }
+  }, [me, state.vendors]);
+
+  // Load last seen messages timestamp for the current identity
   useEffect(() => {
     const key = seenKeyFor(me, state.vendors);
     if (!key) return;
     const v = Number(localStorage.getItem(key) || 0);
     setState((s) => ({ ...s, lastMessagesSeenAt: v }));
-  }, [me?.role, myVendor?.id]);
+  }, [me?.role, myVendor?.uid]);
 
   const _setLastMessagesSeenNow = React.useCallback(() => {
     const key = seenKeyFor(me, state.vendors);
@@ -282,24 +331,31 @@ export default function App() {
     );
   };
 
-  const vendorById = (id) => state.vendors.find((v) => v.id === id);
+  // ---- Data helpers
+  const vendorById = useMemo(
+    () => Object.fromEntries(state.vendors.map((v) => [v.uid || v.id, v])),
+    [state.vendors]
+  );
   const productById = (id) => state.products.find((p) => p.id === id);
 
+  // Distance + ETA helpers for header
   const targetVendor = React.useMemo(() => {
     if (state.screen === "vendorProfile" && state.screenParams.id) {
-      return vendorById(state.screenParams.id);
+      return vendorById[state.screenParams.id];
     }
     if (state.screen === "product" && state.screenParams.id) {
       const p = productById(state.screenParams.id);
-      if (p) return vendorById(p.vendorId);
+      if (p) return vendorById[p.vendorId];
     }
     if (!state.userLoc) return null;
-    let best = null, bestD = Infinity;
+    let best = null,
+      bestD = Infinity;
     for (const v of state.vendors) {
       if (typeof v.lat !== "number" || typeof v.lng !== "number") continue;
       const d = haversineKm(state.userLoc, { lat: v.lat, lng: v.lng });
-      if (d != null && d < bestD) {
-        best = v; bestD = d;
+      if (d < bestD) {
+        best = v;
+        bestD = d;
       }
     }
     return best;
@@ -317,6 +373,7 @@ export default function App() {
       ? `${dynamicEta} mins${targetVendor?.name ? ` to ${targetVendor.name}` : ""}`
       : "—";
 
+  // Cart + checkout
   const addToCart = (productId) =>
     setState((s) => {
       const p = s.products.find((p) => p.id === productId);
@@ -325,12 +382,9 @@ export default function App() {
       let cart;
       if (existing)
         cart = s.cart.map((ci) =>
-          ci.productId === productId
-            ? { ...ci, qty: Math.min(ci.qty + 1, p.stock) }
-            : ci
+          ci.productId === productId ? { ...ci, qty: Math.min(ci.qty + 1, p.stock) } : ci
         );
-      else
-        cart = [...s.cart, { id: uid(), productId, vendorId: p.vendorId, qty: 1 }];
+      else cart = [...s.cart, { id: uid(), productId, vendorId: p.vendorId, qty: 1 }];
       return { ...s, cart };
     });
 
@@ -358,7 +412,7 @@ export default function App() {
     setState((s) => {
       const exists = s.vendors.some((x) => x.id === v.id);
       const vendors = exists ? s.vendors.map((x) => (x.id === v.id ? v : x)) : [...s.vendors, v];
-      // If the pharmacist's pharmacyName changed, update me.pharmacyName as well
+      // keep me.pharmacyName in sync for pharmacists
       let me = s.me;
       if (me?.role === "pharmacist" && v.name && me.pharmacyName !== v.name) {
         me = { ...me, pharmacyName: v.name };
@@ -438,16 +492,33 @@ export default function App() {
   );
 
   const startChatWithVendor = (vendorId, initialText) => {
-    const customerId = getCustomerId(me);
-    if (!customerId) return;
-    const custName =
-      me?.name || me?.fullName || me?.displayName || me?.email || `Customer U_${String(customerId).slice(0, 4).toUpperCase()}`;
-    if (initialText) {
-      sendConversationMessage(vendorId, customerId, { text: initialText }, "customer", custName);
-    } else {
-      getOrCreateConversation(vendorId, customerId, custName);
+    const vId = vendorId;
+    if (!vId || !me) return;
+
+    if (me.role === "customer") {
+      const customerId = getCustomerId(me);
+      if (!customerId) return;
+      const custName =
+        me?.name || me?.fullName || me?.displayName || me?.email ||
+        `Customer U_${String(customerId).slice(0, 4).toUpperCase()}`;
+
+      // Ensure thread exists
+      getOrCreateConversation(vId, customerId, custName);
+
+      // Optional first message
+      if (initialText && String(initialText).trim().length > 0) {
+        sendConversationMessage(
+          vId,
+          customerId,
+          { text: String(initialText).trim() },
+          "customer",
+          custName
+        );
+      }
+      go("messages");
+    } else if (me.role === "pharmacist" && myVendor) {
+      go("messages");
     }
-    go("messages");
   };
 
   // onSend now forwards text + attachments + replyTo
@@ -456,7 +527,8 @@ export default function App() {
     if (me.role === "customer") {
       const customerId = getCustomerId(me);
       const custName =
-        me?.name || me?.fullName || me?.displayName || me?.email || `Customer U_${String(customerId).slice(0, 4).toUpperCase()}`;
+        me?.name || me?.fullName || me?.displayName || me?.email ||
+        `Customer U_${String(customerId).slice(0, 4).toUpperCase()}`;
       sendConversationMessage(partnerId, customerId, { text, attachments, replyTo }, "customer", custName);
     } else if (me.role === "pharmacist" && myVendor?.id) {
       sendConversationMessage(myVendor.id, partnerId, { text, attachments, replyTo }, "vendor");
@@ -488,7 +560,7 @@ export default function App() {
     return total;
   }, [conversationsSafe, state.lastMessagesSeenAt, me, state.vendors]);
 
-  // Include replyTo + attachments in UI threads
+  // 1) Build inboxThreads FIRST
   const inboxThreads = React.useMemo(() => {
     const map = {};
     for (const c of conversationsSafe) {
@@ -496,7 +568,7 @@ export default function App() {
         if (c.customerId !== getCustomerId(me)) continue;
         const key = c.vendorId;
         const arr = map[key] || [];
-        for (const m of asArray(c.messages))
+        for (const m of asArray(c.messages)) {
           arr.push({
             id: m.id,
             from: m.from === "customer" ? "me" : "them",
@@ -505,12 +577,13 @@ export default function App() {
             attachments: m.attachments || [],
             replyTo: m.replyTo || null,
           });
+        }
         map[key] = arr;
       } else if (me?.role === "pharmacist" && myVendor?.id) {
         if (c.vendorId !== myVendor.id) continue;
         const key = c.customerId;
         const arr = map[key] || [];
-        for (const m of asArray(c.messages))
+        for (const m of asArray(c.messages)) {
           arr.push({
             id: m.id,
             from: m.from === "vendor" ? "me" : "them",
@@ -519,15 +592,21 @@ export default function App() {
             attachments: m.attachments || [],
             replyTo: m.replyTo || null,
           });
+        }
         map[key] = arr;
       }
     }
     return map;
   }, [conversationsSafe, me, myVendor?.id]);
 
+  // 2) Normalize thread keys to vendor UIDs for Messages
+  const threadsForMessages = React.useMemo(() => inboxThreads, [inboxThreads]);
+
+  // 3) Vendors list for Messages (pharmacist view appends customers)
   const vendorsForMessages = React.useMemo(() => {
     if (me?.role !== "pharmacist" || !myVendor?.id) return state.vendors;
-    const labelFor = (c) => c.customerName || `Customer U_${String(c.customerId).slice(0, 4).toUpperCase()}`;
+    const labelFor = (c) =>
+      c.customerName || `Customer U_${String(c.customerId).slice(0, 4).toUpperCase()}`;
     const map = {};
     for (const c of conversationsSafe) {
       if (c.vendorId !== myVendor.id) continue;
@@ -535,6 +614,23 @@ export default function App() {
     }
     return [...state.vendors, ...Object.values(map)];
   }, [me, myVendor?.id, conversationsSafe, state.vendors]);
+
+  // ---- Handlers expected by <Messages />
+  const handleSendMessage = (...args) => onSendFromMessages(...args);
+
+  const handleOpenVendor = (partnerId) => {
+    const v = (state.vendors || []).find((x) => (x.uid || x.id) === partnerId);
+    if (v) go("vendorProfile", { id: v.uid || v.id });
+  };
+
+  const resolvePhone = (partnerId) => {
+    const v = (state.vendors || []).find((x) => (x.uid || x.id) === partnerId);
+    return v?.contact ? normalizePhone(v.contact) : "";
+  };
+
+  const onActiveThreadChange = (active) => {
+    setHideNavForChatThread(!!active);
+  };
 
   /* -------------------------------- Screens -------------------------------- */
   const Screens = {
@@ -544,9 +640,19 @@ export default function App() {
         role={state.screenParams.role}
         onBack={() => go("landing")}
         onDone={(user) => {
-          const withUid =
-            user.role === "customer" ? { ...user, uid: user.uid || user.id || uid() } : user;
-          setState((s) => ({ ...s, me: withUid, screen: withUid.role === "customer" ? "home" : "vendorDashboard" }));
+          let withUid = user;
+          if (user.role === "customer") {
+            withUid = { ...user, uid: user.uid || user.id || uid() };
+          } else if (user.role === "pharmacist") {
+            // Ensure pharmacist's me.uid matches their vendor UID if possible
+            const vendor = (state.vendors || []).find(v => v.id === user.id || v.name === user.pharmacyName);
+            withUid = { ...user, uid: vendor?.uid || user.uid || user.id || uid() };
+          }
+          setState((s) => ({
+            ...s,
+            me: withUid,
+            screen: withUid.role === "customer" ? "home" : "vendorDashboard",
+          }));
         }}
       />
     ),
@@ -571,7 +677,10 @@ export default function App() {
     ),
     product: (() => {
       const product = productById(state.screenParams.id);
-      const vendor = vendorById(product?.vendorId);
+      let vendor = vendorById[product?.vendorId];
+      if (!vendor && product?.vendorId) {
+        vendor = state.vendors.find((v) => v.id === product.vendorId);
+      }
       const phone = vendor?.contact ? normalizePhone(vendor.contact) : "";
 
       return (
@@ -588,7 +697,11 @@ export default function App() {
           <ProductDetail
             product={product}
             vendor={vendor}
-            onVendor={(id) => go("vendorProfile", { id })}
+            onVendor={(id) => {
+              // Find vendor by id or uid
+              const v = vendorById[id] || state.vendors.find((vv) => vv.id === id);
+              go("vendorProfile", { id: v ? (v.uid || v.id) : id });
+            }}
             onAdd={() => addToCart(state.screenParams.id)}
             onEnquiry={(vendorId, text) => startChatWithVendor(vendorId, text)}
           />
@@ -620,19 +733,16 @@ export default function App() {
     ),
     orders: <Orders orders={state.orders} productById={productById} />,
     messages:
-      Object.keys(inboxThreads).length === 0 ? (
+      !inboxThreads || Object.keys(inboxThreads).length === 0 ? (
         <div className="p-6 text-center text-sm text-slate-500">No Chats</div>
       ) : (
         <Messages
           vendors={vendorsForMessages}
-          threads={inboxThreads || {}}
-          onOpenVendor={me?.role === "pharmacist" ? undefined : (id) => go("vendorProfile", { id })}
-          onSend={(partnerId, text, attachments, replyTo) => onSendFromMessages(partnerId, text, attachments, replyTo)}
-          resolvePhone={(partnerId) => {
-            const v = vendorById(partnerId);
-            return v?.contact ? normalizePhone(v.contact) : "";
-          }}
-          onActiveThreadChange={(active) => setHideNavForChatThread(Boolean(active))}
+          threads={threadsForMessages}
+          onSend={handleSendMessage}
+          onOpenVendor={handleOpenVendor}
+          resolvePhone={resolvePhone}
+          onActiveThreadChange={onActiveThreadChange}
           lastSeenAt={state.lastMessagesSeenAt}
         />
       ),
@@ -688,10 +798,12 @@ export default function App() {
     ),
     vendorProfile: (
       <VendorProfile
-        vendor={vendorById(state.screenParams.id)}
-        products={state.products.filter((p) => p.vendorId === state.screenParams.id)}
-        onMessage={(vendorId, text) => startChatWithVendor(vendorId, text)}
-        onAddToCart={(id) => addToCart(id)}
+        vendor={vendorById[state.screenParams.id] || state.vendors.find((v) => v.id === state.screenParams.id)}
+        products={state.products.filter(
+          (p) => p.vendorId === state.screenParams.id || vendorById[p.vendorId]?.id === state.screenParams.id
+        )}
+        onMessage={startChatWithVendor}
+        onAddToCart={addToCart}
       />
     ),
     profile: (
@@ -714,22 +826,6 @@ export default function App() {
   const mainPb =
     state.screen === "messages" && hideNavForChatThread ? "pb-0" : showBottomNav ? "pb-32" : "pb-4";
   const mainOverflow = state.screen === "messages" && hideNavForChatThread ? "overflow-hidden" : "";
-
-  const bottomTabs =
-    me?.role === "pharmacist"
-      ? [
-          { key: "vendorDashboard", label: "Dashboard", onClick: () => go("vendorDashboard") },
-          { key: "orders", label: "Orders", onClick: () => go("orders") },
-          { key: "messages", label: "Messages", onClick: () => go("messages") },
-          { key: "profile", label: "Profile", onClick: () => go("profile") },
-        ]
-      : [
-          { key: "home", label: "Home", onClick: () => go("home") },
-          { key: "orders", label: "Orders", onClick: () => go("orders") },
-          { key: "messages", label: "Messages", onClick: () => go("messages") },
-          { key: "cart", label: "Cart", onClick: () => go("cart") },
-          { key: "profile", label: "Profile", onClick: () => go("profile") },
-        ];
 
   const locText =
     state.userPlace?.label ||
@@ -778,15 +874,28 @@ export default function App() {
         >
           <div
             className="grid"
-            style={{ gridTemplateColumns: `repeat(${bottomTabs.length}, minmax(0, 1fr))` }}
+            style={{ gridTemplateColumns: `repeat(${(me?.role === "pharmacist" ? 4 : 5)}, minmax(0, 1fr))` }}
           >
-            {bottomTabs.map((tab) => {
+            {(me?.role === "pharmacist"
+              ? [
+                  { key: "vendorDashboard", label: "Dashboard", onClick: () => go("vendorDashboard") },
+                  { key: "orders", label: "Orders", onClick: () => go("orders") },
+                  { key: "messages", label: "Messages", onClick: () => go("messages") },
+                  { key: "profile", label: "Profile", onClick: () => go("profile") },
+                ]
+              : [
+                  { key: "home", label: "Home", onClick: () => go("home") },
+                  { key: "orders", label: "Orders", onClick: () => go("orders") },
+                  { key: "messages", label: "Messages", onClick: () => go("messages") },
+                  { key: "cart", label: "Cart", onClick: () => go("cart") },
+                  { key: "profile", label: "Profile", onClick: () => go("profile") },
+                ]
+            ).map((tab) => {
               const isActive = state.screen === tab.key;
               const cartCount = state.cart.reduce((sum, ci) => sum + ci.qty, 0);
               const showCartBadge = tab.key === "cart" && cartCount > 0;
               const cartBadgeText = cartCount > 99 ? "99+" : String(cartCount);
 
-              // recompute unread (already memoized above)
               const unread =
                 tab.key === "messages"
                   ? (state.conversations || []).reduce((total, c) => {

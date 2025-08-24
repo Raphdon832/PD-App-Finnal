@@ -103,7 +103,7 @@ export default function VendorProfile({ vendor, products, onMessage, onAddToCart
 						<Button
 							onClick={() => {
 								if (text.trim()) {
-									onMessage(vendor.id, text.trim());
+									onMessage(vendor.uid || vendor.id, text.trim());
 									setText("");
 								}
 							}}
