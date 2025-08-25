@@ -30,7 +30,21 @@ export default function AuthFlow({ role = "customer", onDone, onBack }) {
         if (!password) throw new Error("Enter your password");
         const { uid, role: userRole } = await signInWithEmailAndEnsureProfile({ email, password });
         if (userRole !== role) throw new Error(`This account is registered as ${userRole}`);
-        onDone({ uid, role: userRole });
+        if (userRole === "pharmacist") {
+          onDone({
+            uid,
+            id: uid,
+            role: userRole,
+            name: name.trim(),
+            email,
+            phone,
+            pharmacyName: pharmacyName.trim(),
+            pharmacyAddress: address.trim(),
+            pharmacyLocation: pin ? { lat: pin.lat, lng: pin.lng } : undefined
+          });
+        } else {
+          onDone({ uid, id: uid, role: userRole, name: name.trim(), email, phone });
+        }
         return;
       }
       if (!name.trim()) throw new Error(isCustomer ? "Enter your display name" : "Enter contact name");
@@ -38,7 +52,7 @@ export default function AuthFlow({ role = "customer", onDone, onBack }) {
       if (!password || password.length < 7) throw new Error("Password must be at least 7 characters");
       if (isCustomer) {
         const { uid, role: userRole } = await signUpWithEmail({ email, password, phone, role: "customer" });
-        onDone({ uid, role: userRole, name: name.trim(), email, phone });
+        onDone({ uid, id: uid, role: userRole, name: name.trim(), email, phone });
       } else {
         if (!pharmacyName.trim()) throw new Error("Enter pharmacy name");
         if (!address.trim()) throw new Error("Enter pharmacy address");
@@ -51,6 +65,7 @@ export default function AuthFlow({ role = "customer", onDone, onBack }) {
         });
         onDone({
           uid,
+          id: uid,
           role: userRole,
           name: name.trim(),
           email,
