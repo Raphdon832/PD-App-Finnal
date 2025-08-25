@@ -4,7 +4,7 @@ import { collection, doc, getDoc, getDocs, updateDoc, onSnapshot, setDoc } from 
 
 export function listenToProfiles(cb) {
   return onSnapshot(collection(db, 'users'), (snap) => {
-    cb(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    cb(snap.docs.map(doc => ({ id: doc.id, uid: doc.id, ...doc.data() })));
   });
 }
 
