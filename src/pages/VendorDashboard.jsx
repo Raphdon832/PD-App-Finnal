@@ -88,21 +88,23 @@ export default function VendorDashboard({
 		fr.readAsDataURL(f);
 	};
 	const onSubmit = () => {
-		if (!form.name.trim()) return alert("Enter product name");
-		if (!me?.uid) return alert("User UID missing. Please re-login.");
-		addProduct({
-			...form,
-			price: Number(form.price) || 0,
-			stock: Number(form.stock) || 0,
-			vendorId: me.uid, // Use pharmacist UID for vendorId
-			vendorName: myVendor?.name || me?.pharmacyName || "",
-		});
+if (!form.name.trim()) return alert("Enter product name");
+const vendorId = myVendor?.id || me?.id;
+if (!vendorId) return alert("Vendor ID missing. Please re-login.");
+addProduct({
+  ...form,
+  price: Number(form.price) || 0,
+  stock: Number(form.stock) || 0,
+  vendorId, // Stable vendor/customer ID
+  vendorName: myVendor?.name || me?.pharmacyName || "",
+});
+
 		setForm({
 			name: "",
 			price: "",
 			stock: "",
 			image: "",
-			category: "Therapeutic",
+			category: "",
 			description: "",
 		});
 	};

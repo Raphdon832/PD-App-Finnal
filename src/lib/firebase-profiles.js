@@ -1,6 +1,6 @@
 // Firestore profile helpers
 import { db } from './firebase';
-import { collection, doc, getDoc, getDocs, updateDoc, onSnapshot, setDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, updateDoc, onSnapshot, setDoc, runTransaction } from 'firebase/firestore';
 
 export function listenToProfiles(cb) {
   return onSnapshot(collection(db, 'users'), (snap) => {
@@ -35,4 +35,34 @@ export async function ensureUserProfile({ uid, email, phone = '', defaultRole = 
     await setDoc(docRef, { email, phone, role: defaultRole, createdAt: new Date().toISOString() });
     return defaultRole;
   }
+}
+
+export async function getNextProductNumber(pharmId) {
+  const counterRef = doc(db, 'pharmacies', pharmId, 'meta', 'counters');
+  return await runTransaction(db, async (transaction) => {
+    const counterSnap = await transaction.get(counterRef);
+    let next = 1;
+    if (counterSnap.exists()) {
+      const data = counterSnap.data();
+      next = (data.nextProductNumber || 1);
+    }
+    transaction.set(counterRef, { nextProductNumber: next + 1 }, { merge: true });
+    return next;
+  });
+}
+
+export function makeProductId(pharmId, productNumber) {
+  return `${pharmId}-${String(productNumber).padStart(3, '0')}`;
+}
+
+export function makeCartId(customerId, pharmId) {
+  return `${customerId}_${pharmId}`;
+}
+
+export function makeCheckoutId(productId, customerId) {
+  return `${productId}__${customerId}`;
+}
+
+export function makeThreadId(customerId, pharmId) {
+  return [customerId, pharmId].sort().join('_');
 }
