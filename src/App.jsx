@@ -225,12 +225,17 @@ export default function App() {
       setState((s) => {
         if (!user) return { ...s, me: null, screen: "auth" };
         const role = s.me?.role || "pharmacist"; // preserve chosen role
+        let fallbackName = "";
+        if (role === "pharmacist") fallbackName = user.email || "Pharmacist";
+        else if (role === "customer") fallbackName = user.email || "Customer";
+        else fallbackName = user.email || "User";
         const merged = {
           ...s.me,
           id: user.uid,        // align id to auth.uid
           uid: user.uid,       // single source of truth
           email: user.email || s.me?.email || "",
-          displayName: user.displayName || s.me?.displayName || s.me?.name || "Pharmacist",
+          displayName: user.displayName || s.me?.displayName || s.me?.name || fallbackName,
+          name: user.displayName || s.me?.displayName || s.me?.name || fallbackName,
           role,
         };
         return { ...s, me: merged };

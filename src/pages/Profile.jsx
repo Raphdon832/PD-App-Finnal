@@ -127,7 +127,9 @@ export default function Profile({ me, myVendor, upsertVendor, onLogout }){
                 </div>
               </div>
               <div>
-                <div className="text-lg font-semibold tracking-tighter">{me?.name || 'Guest'}</div>
+                <div className="text-lg font-semibold tracking-tighter">{
+                  me?.displayName || me?.name || me?.email || 'Guest'
+                }</div>
                 <div className="text-sm text-slate-600 tracking-tighter">Role: {me?.role || 'customer'}</div>
                 {me?.pharmacyName && <div className="text-sm text-slate-600 tracking-tighter">Pharmacy: {me.pharmacyName}</div>}
                 {me?.role === "pharmacist" && (
