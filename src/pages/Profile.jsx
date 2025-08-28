@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import MapPicker from "@/components/MapPicker";
+import useProfileListener from "@/lib/useProfileListener";
 
 export default function Profile({ me, myVendor, upsertVendor, onLogout }){
   const [connected, setConnected] = useState(false);
@@ -50,6 +51,17 @@ export default function Profile({ me, myVendor, upsertVendor, onLogout }){
       setImages(myVendor.images || []);
     }
   }, [myVendor]);
+
+  // Real-time Firestore profile sync for customer
+  useProfileListener(me?.uid, (profile) => {
+    if (!profile) return;
+    setProfile((p) => ({
+      ...p,
+      displayName: profile.displayName || p.displayName || '',
+      email: profile.email || p.email || '',
+      phone: profile.phone || p.phone || '',
+    }));
+  });
 
   const isChanged = JSON.stringify(profile) !== JSON.stringify(initialProfile);
 
