@@ -127,11 +127,23 @@ export default function Profile({ me, myVendor, upsertVendor, onLogout }){
                 </div>
               </div>
               <div>
-                <div className="text-lg font-semibold tracking-tighter">{
-                  me?.role === "pharmacist"
+                <div className="text-lg font-semibold tracking-tighter">
+                  {me?.role === "pharmacist"
                     ? (myVendor?.name || me?.pharmacyName || 'No Name Set')
-                    : (me?.displayName || me?.name || 'No Name Set')
-                }</div>
+                    : (
+                      editing ? (
+                        <Input
+                          value={me?.displayName || ''}
+                          placeholder="Enter your display name"
+                          onChange={e => upsertVendor && upsertVendor({ ...me, displayName: e.target.value })}
+                          className="h-8 px-2 py-1 text-base font-semibold"
+                        />
+                      ) : (
+                        (me?.displayName || 'No Name Set')
+                      )
+                    )
+                  }
+                </div>
                 <div className="text-sm text-slate-600 tracking-tighter">Role: {me?.role || 'customer'}</div>
                 {me?.pharmacyName && <div className="text-sm text-slate-600 tracking-tighter">Pharmacy: {me.pharmacyName}</div>}
                 {me?.role === "pharmacist" && (
