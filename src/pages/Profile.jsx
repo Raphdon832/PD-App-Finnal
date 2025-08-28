@@ -63,6 +63,24 @@ export default function Profile({ me, myVendor, upsertVendor, onLogout }){
     }));
   });
 
+  // Real-time Firestore profile sync for vendor (pharmacist)
+  useProfileListener(me?.uid, (profile) => {
+    if (!profile) return;
+    if (me?.role === "pharmacist") {
+      setProfile((p) => ({
+        ...p,
+        name: profile.name || p.name || '',
+        address: profile.address || p.address || '',
+        contact: profile.contact || p.contact || '',
+        email: profile.email || p.email || '',
+        lat: profile.lat ?? p.lat,
+        lng: profile.lng ?? p.lng,
+      }));
+      setDp(profile.dp || "");
+      setImages(profile.images || []);
+    }
+  });
+
   const isChanged = JSON.stringify(profile) !== JSON.stringify(initialProfile);
 
   const connectWallet = async () => {
