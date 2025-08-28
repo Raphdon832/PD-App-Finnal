@@ -368,6 +368,16 @@ export default function App() {
     return () => unsub && unsub();
   }, []);
 
+  // Real-time vendors sync from Firestore
+  useEffect(() => {
+    const unsub = listenToProfiles((profiles) => {
+      // Only keep vendors with real Firebase UID (28+ chars)
+      const realProfiles = profiles.filter((v) => /^([A-Za-z0-9_-]{28,})$/.test(v.id));
+      setState((s) => ({ ...s, vendors: realProfiles }));
+    });
+    return () => unsub && unsub();
+  }, []);
+
   useEffect(() => {
     const unsub = listenToProfiles((profiles) => {
       // Only keep vendors with real Firebase UID (28+ chars)
@@ -904,7 +914,7 @@ export default function App() {
       {showBottomNav && (
         <nav
           role="navigation"
-          className="fixed bottom-3 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-1.5rem)] max-w-md bg-white/50 border-[2px] border-slate-200 shadow-xl backdrop-blur-[5px] rounded-[10px]"
+          className="fixed bottom-3 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-1.5rem)] max-w-md bg-[#36A5FF]/10 border-[2px] border-slate-200 shadow-xl backdrop-blur-[5px] rounded-[10px]"
         >
           <div
             className="grid"

@@ -78,9 +78,9 @@ export default function Home({ go, vendors, products, addToCart, userLoc }) {
       </div>
 
       <section>
-        <div className="flex items-center justify-between mb-2 font-poppins">
+        <div className="flex items-center justify-between mb-2 font-poppins color-blue-600">
           <h3 className="font-semibold font-poppins tracking-tighter">New Arrivals</h3>
-          <Button variant="ghost" size="sm" onClick={() => go("catalog")}>
+          <Button variant="ghost" size="sm" onClick={() => go("catalog")} className="text-blue-400 hover:text-blue-700 hover:bg-blue-50">
             View all
           </Button>
         </div>
