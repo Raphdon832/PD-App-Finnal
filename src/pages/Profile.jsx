@@ -332,61 +332,62 @@ export default function Profile({ me, myVendor, upsertVendor, onLogout }){
           </CardContent>
         </Card>
       )}
+      {/* Customer Profile Settings Section */}
       {me?.role !== "pharmacist" && (
         <Card>
           <CardHeader className="font-poppins tracking-tighter">
-            <CardTitle className="text-base tracking-tighter">Profile Settings</CardTitle>
-            <CardDescription className="tracking-tighter">Edit your personal details</CardDescription>
+            <CardTitle className="text-xl font-bold tracking-tighter">Profile Settings</CardTitle>
+            <CardDescription className="tracking-tighter">Edit your details</CardDescription>
           </CardHeader>
-          <CardContent className="font-poppins tracking-tighter">
+          <CardContent className="font-poppins tracking-tighter space-y-3">
             <div className="grid grid-cols-1 gap-3">
               <div className="grid gap-2">
                 <Label>Display Name</Label>
                 <Input
-                  value={me?.displayName || ""}
+                  value={profile.displayName || ''}
+                  readOnly={!editing}
                   onChange={e => setProfile(v => ({ ...v, displayName: e.target.value }))}
-                  className="h-10 px-3 py-2 text-base font-semibold"
+                  placeholder="Enter your display name"
                 />
               </div>
               <div className="grid gap-2">
                 <Label>Email</Label>
                 <Input
-                  type="email"
-                  value={profile.email || ""}
+                  value={profile.email || ''}
+                  readOnly={!editing}
                   onChange={e => setProfile(v => ({ ...v, email: e.target.value }))}
-                  className="h-10 px-3 py-2 text-base font-semibold"
+                  placeholder="Enter your email"
                 />
               </div>
               <div className="grid gap-2">
                 <Label>Phone Number</Label>
                 <Input
-                  value={profile.phone || ""}
+                  value={profile.phone || ''}
+                  readOnly={!editing}
                   onChange={e => setProfile(v => ({ ...v, phone: e.target.value }))}
-                  className="h-10 px-3 py-2 text-base font-semibold"
+                  placeholder="Enter your phone number"
                 />
               </div>
             </div>
-            <div className="mt-4">
-              {!editing ? (
-                <Button className="w-full" onClick={() => setEditing(true)}>
-                  Edit Profile
-                </Button>
-              ) : (
-                <Button
-                  onClick={async () => {
-                    if (!profile.displayName?.trim()) return alert("Enter your display name");
-                    if (!profile.email?.trim()) return alert("Enter your email");
-                    if (!profile.phone?.trim()) return alert("Enter your phone number");
-                    await upsertVendor({ ...me, displayName: profile.displayName, email: profile.email, phone: profile.phone });
-                    setEditing(false);
-                    alert("Profile updated");
-                  }}
-                  className="w-full"
-                >
-                  Save Profile
-                </Button>
-              )}
-            </div>
+            {!editing ? (
+              <Button className="w-full" onClick={() => setEditing(true)}>
+                Edit
+              </Button>
+            ) : (
+              <Button
+                onClick={async () => {
+                  if (!profile.displayName?.trim()) return alert("Enter your display name");
+                  if (!profile.email?.trim()) return alert("Enter your email");
+                  if (!profile.phone?.trim()) return alert("Enter your phone number");
+                  await upsertVendor({ ...me, displayName: profile.displayName, email: profile.email, phone: profile.phone });
+                  setEditing(false);
+                  alert("Profile updated");
+                }}
+                className="w-full"
+              >
+                Save Profile
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}
