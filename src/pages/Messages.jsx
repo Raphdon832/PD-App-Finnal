@@ -567,14 +567,21 @@ export default function Messages({
   // Use Firestore threads if available
   const threadsToUse = Object.keys(fsThreads).length ? fsThreads : threads;
 
-  // Handler to send a message using Firestore
+  // Handler to send a message using Firestore, creating conversation if needed
   const handleSend = async (partnerId, text, attachments, replyTo) => {
-    // Find the conversation for this partner
-    const conv = fsConversations.find(c => c.customerId === partnerId || c.vendorId === partnerId);
-    if (!conv) return;
-    const fromRole = me?.role === 'pharmacist' ? 'vendor' : 'customer';
+    let conv = fsConversations.find(c => c.customerId === partnerId || c.vendorId === partnerId);
+    // If no conversation exists, create one
+    if (!conv) {
+      const fromRole = me?.role === 'pharmacist' ? 'vendor' : 'customer';
+      const data = me?.role === 'pharmacist'
+        ? { vendorId: me.uid || me.id, customerId: partnerId }
+        : { vendorId: partnerId, customerId: me.uid || me.id };
+      const convId = await createConversation(data);
+      conv = { id: convId, ...data };
+      setFsConversations(prev => [...prev, conv]);
+    }
     await sendMessage(conv.id, {
-      from: fromRole,
+      from: me?.role === 'pharmacist' ? 'vendor' : 'customer',
       text,
       attachments,
       replyTo,
