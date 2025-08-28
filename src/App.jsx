@@ -966,18 +966,26 @@ export default function App() {
                   onClick={tab.onClick}
                   className={`py-3 flex flex-col items-center justify-center text-xs font-poppins tracking-tighter ${isActive ? "text-sky-600 font-bold" : "text-slate-700 font-normal"}`}
                 >
-                  <div className="relative">
-                    <IconCmp className="h-5 w-5" />
-                    {showCartBadge && (
-                      <span className="absolute -top-1 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] leading-[18px] text-center font-semibold">
-                        {cartBadgeText}
-                      </span>
-                    )}
-                    {showMsgBadge && (
-                      <span className="absolute -top-1 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] leading-[18px] text-center font-semibold">
-                        {msgBadgeText}
-                      </span>
-                    )}
+                  <div className="relative flex items-center justify-center">
+                    {isActive ? (
+                      <span
+                        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-[0_4px_16px_0_rgba(54,165,255,0.25)]"
+                        style={{ width: 40, height: 40, zIndex: 0 }}
+                      />
+                    ) : null}
+                    <span className="relative z-10 flex items-center justify-center">
+                      <IconCmp className="h-5 w-5" />
+                      {showCartBadge && (
+                        <span className="absolute -top-1 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] leading-[18px] text-center font-semibold">
+                          {cartBadgeText}
+                        </span>
+                      )}
+                      {showMsgBadge && (
+                        <span className="absolute -top-1 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] leading-[18px] text-center font-semibold">
+                          {msgBadgeText}
+                        </span>
+                      )}
+                    </span>
                   </div>
                   <span className={`mt-1 ${isActive ? "font-bold" : "font-normal"}`}>{tab.label}</span>
                 </button>
