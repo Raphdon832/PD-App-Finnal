@@ -16,7 +16,7 @@
 
 :root {
   --safe-bottom: env(safe-area-inset-bottom);
-  font-family: "Bebas Neue", system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: "Poppins", system-ui, -apple-system, Segoe UI, Roboto, "Poppins", Arial;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

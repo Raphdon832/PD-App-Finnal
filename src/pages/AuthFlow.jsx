@@ -105,7 +105,7 @@ export default function AuthFlow({ role = "customer", onDone, onBack }) {
           <button
             type="button"
             onClick={onBack}
-            className="absolute top-3 left-3 inline-flex items-center gap-2 px-3 py-2 rounded-full border bg-white text-slate-700 hover:bg-slate-50 shadow-sm font-poppins tracking-tighter"
+            className="absolute top-3 left-3 inline-flex items-center gap-2 px-3 py-2 rounded-md border-color-slate-300 bg-slate-50/10 hover:bg-slate-50/20 hover: text-slate-700 hover:bg-slate-50 shadow-sm font-poppins tracking-tighter"
           >
             <ArrowLeft size={18} />
             <span className="text-sm font-poppins tracking-tighter">Back</span>
@@ -114,7 +114,7 @@ export default function AuthFlow({ role = "customer", onDone, onBack }) {
 
         <div className="text-center mb-6 font-poppins tracking-tighter">
           <img src={pdLogo} alt="PD Logo" className="mx-auto h-16 mb-2" />
-          <div className="tracking-[0.2em] text-base font-poppins tracking-tighter">HEALTHCARE AT YOUR DOORSTEP</div>
+          <div className="tracking-[0.2em] text-sm font-poppins tracking-tighter">HEALTHCARE AT YOUR DOORSTEP</div>
         </div>
 
         {/* Segmented Toggle */}
