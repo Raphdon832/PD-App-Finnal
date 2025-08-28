@@ -50,6 +50,7 @@ export default function AuthFlow({ role = "customer", onDone, onBack }) {
       if (!email.trim() || !isValidEmail(email)) throw new Error("Enter a valid email");
       if (!password || password.length < 7) throw new Error("Password must be at least 7 characters");
       if (isCustomer) {
+        if (!phone.trim()) throw new Error("Enter your phone number");
         const { uid, role: userRole } = await signUpWithEmail({ email, password, phone, role: "customer", displayName: name.trim() });
         onDone({ uid, role: userRole, name: name.trim(), email, phone });
       } else {

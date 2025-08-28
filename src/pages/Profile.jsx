@@ -132,14 +132,32 @@ export default function Profile({ me, myVendor, upsertVendor, onLogout }){
                     ? (myVendor?.name || me?.pharmacyName || 'No Name Set')
                     : (
                       editing ? (
-                        <Input
-                          value={me?.displayName || ''}
-                          placeholder="Enter your display name"
-                          onChange={e => upsertVendor && upsertVendor({ ...me, displayName: e.target.value })}
-                          className="h-8 px-2 py-1 text-base font-semibold"
-                        />
+                        <>
+                          <Input
+                            value={me?.displayName || ''}
+                            placeholder="Enter your display name"
+                            onChange={e => setProfile(v => ({ ...v, displayName: e.target.value }))}
+                            className="h-8 px-2 py-1 text-base font-semibold mb-2"
+                          />
+                          <Input
+                            value={profile.email || ''}
+                            placeholder="Enter your email"
+                            onChange={e => setProfile(v => ({ ...v, email: e.target.value }))}
+                            className="h-8 px-2 py-1 text-base font-semibold mb-2"
+                          />
+                          <Input
+                            value={profile.phone || ''}
+                            placeholder="Enter your phone number"
+                            onChange={e => setProfile(v => ({ ...v, phone: e.target.value }))}
+                            className="h-8 px-2 py-1 text-base font-semibold"
+                          />
+                        </>
                       ) : (
-                        (me?.displayName || 'No Name Set')
+                        <>
+                          <div>{me?.displayName || 'No Name Set'}</div>
+                          <div className="text-xs text-slate-600">{me?.email || ''}</div>
+                          <div className="text-xs text-slate-600">{me?.phone || ''}</div>
+                        </>
                       )
                     )
                   }
@@ -311,6 +329,64 @@ export default function Profile({ me, myVendor, upsertVendor, onLogout }){
                 Save Profile
               </Button>
             )}
+          </CardContent>
+        </Card>
+      )}
+      {me?.role !== "pharmacist" && (
+        <Card>
+          <CardHeader className="font-poppins tracking-tighter">
+            <CardTitle className="text-base tracking-tighter">Profile Settings</CardTitle>
+            <CardDescription className="tracking-tighter">Edit your personal details</CardDescription>
+          </CardHeader>
+          <CardContent className="font-poppins tracking-tighter">
+            <div className="grid grid-cols-1 gap-3">
+              <div className="grid gap-2">
+                <Label>Display Name</Label>
+                <Input
+                  value={me?.displayName || ""}
+                  onChange={e => setProfile(v => ({ ...v, displayName: e.target.value }))}
+                  className="h-10 px-3 py-2 text-base font-semibold"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Email</Label>
+                <Input
+                  type="email"
+                  value={profile.email || ""}
+                  onChange={e => setProfile(v => ({ ...v, email: e.target.value }))}
+                  className="h-10 px-3 py-2 text-base font-semibold"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Phone Number</Label>
+                <Input
+                  value={profile.phone || ""}
+                  onChange={e => setProfile(v => ({ ...v, phone: e.target.value }))}
+                  className="h-10 px-3 py-2 text-base font-semibold"
+                />
+              </div>
+            </div>
+            <div className="mt-4">
+              {!editing ? (
+                <Button className="w-full" onClick={() => setEditing(true)}>
+                  Edit Profile
+                </Button>
+              ) : (
+                <Button
+                  onClick={async () => {
+                    if (!profile.displayName?.trim()) return alert("Enter your display name");
+                    if (!profile.email?.trim()) return alert("Enter your email");
+                    if (!profile.phone?.trim()) return alert("Enter your phone number");
+                    await upsertVendor({ ...me, displayName: profile.displayName, email: profile.email, phone: profile.phone });
+                    setEditing(false);
+                    alert("Profile updated");
+                  }}
+                  className="w-full"
+                >
+                  Save Profile
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}
