@@ -19,24 +19,20 @@ export async function updateProfile(uid, data) {
 }
 
 // Ensure user profile exists and return the role
-export async function ensureUserProfile({ uid, email, phone = '', defaultRole = 'customer', displayName = '' }) {
+export async function ensureUserProfile({ uid, email, phone = '', defaultRole = 'customer' }) {
   const docRef = doc(db, 'users', uid);
   const snap = await getDoc(docRef);
   if (snap.exists()) {
     const data = snap.data();
-    // If role or displayName is missing, set them
-    const updates = {};
-    if (!data.role) updates.role = defaultRole;
-    if (defaultRole === 'customer' && !data.displayName && displayName) updates.displayName = displayName;
-    if (Object.keys(updates).length > 0) {
-      await updateDoc(docRef, updates);
+    // If role is missing, set it
+    if (!data.role) {
+      await updateDoc(docRef, { role: defaultRole });
+      return defaultRole;
     }
-    return data.role || defaultRole;
+    return data.role;
   } else {
-    // Create profile with default role and displayName
-    const profile = { email, phone, role: defaultRole, createdAt: new Date().toISOString() };
-    if (defaultRole === 'customer' && displayName) profile.displayName = displayName;
-    await setDoc(docRef, profile);
+    // Create profile with default role
+    await setDoc(docRef, { email, phone, role: defaultRole, createdAt: new Date().toISOString() });
     return defaultRole;
   }
 }
