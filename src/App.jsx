@@ -878,7 +878,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-white text-slate-900">
       {showHeader && (
-        <div className="sticky top-0 z-40 bg-white/70 backdrop-blur border-b border-slate-200">
+        <div className="sticky top-0 z-40 bg-[#36A5FF]/10 backdrop-blur border-b border-slate-200">
           <div className="mx-auto max-w-5xl px-4 py-3 flex items-center justify-between font-poppins leading-none text-[9px]">
             <div className="flex items-center gap-2">
               <img src={pdLogo} alt="PD — Healthcare at your doorstep" className="h-7 w-auto select-none" />
@@ -914,7 +914,7 @@ export default function App() {
       {showBottomNav && (
         <nav
           role="navigation"
-          className="fixed bottom-3 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-1.5rem)] max-w-md bg-[#36A5FF]/10 border-[2px] border-slate-200 shadow-xl backdrop-blur-[5px] rounded-[10px]"
+          className="fixed bottom-3 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-1.5rem)] max-w-md bg-[#36A5FF]/10 border-[2px] border-slate-100 shadow-xl backdrop-blur-[5px] rounded-[10px]"
         >
           <div
             className="grid"
