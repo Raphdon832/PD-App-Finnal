@@ -488,7 +488,6 @@ function ChatThreadScreen({
 export default function Messages({
   vendors = [],
   threads = {},
-  onSend,
   onOpenVendor,
   resolvePhone,
   onActiveThreadChange,
@@ -568,6 +567,20 @@ export default function Messages({
   // Use Firestore threads if available
   const threadsToUse = Object.keys(fsThreads).length ? fsThreads : threads;
 
+  // Handler to send a message using Firestore
+  const handleSend = async (partnerId, text, attachments, replyTo) => {
+    // Find the conversation for this partner
+    const conv = fsConversations.find(c => c.customerId === partnerId || c.vendorId === partnerId);
+    if (!conv) return;
+    const fromRole = me?.role === 'pharmacist' ? 'vendor' : 'customer';
+    await sendMessage(conv.id, {
+      from: fromRole,
+      text,
+      attachments,
+      replyTo,
+    });
+  };
+
   if (conversations.length === 0) {
     return <EmptyState title="No Chats" body="Start an enquiry from a product or vendor page to begin." />;
   }
@@ -591,7 +604,7 @@ export default function Messages({
         isVendorKnown={!!activePartnerVendor}
         onOpenVendor={onOpenVendor}
         thread={activeThread}
-        onSend={onSend}
+        onSend={handleSend}
         onBack={() => setActivePartnerId(null)}
         resolvePhone={resolvePhone}
         onActiveChange={onActiveThreadChange}
