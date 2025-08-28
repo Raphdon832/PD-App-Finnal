@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { Pill } from "lucide-react";
 import { currency } from "@/lib/utils";
-export default function ProductDetail({ product, vendor, onVendor, onAdd }){
+export default function ProductDetail({ product, vendor, onVendor, onAdd, goBack }){
   if (!product) return <div>Product not found.</div>;
   return (
     <div className="grid md:grid-cols-2 gap-6">
@@ -10,6 +10,7 @@ export default function ProductDetail({ product, vendor, onVendor, onAdd }){
         {product.image ? <img src={product.image} alt={product.name} className="object-cover w-full h-full"/> : <Pill className="h-10 w-10 text-slate-400"/>}
       </div>
       <div className="space-y-3">
+        
         <h2 className="text-xl font-semibold font-poppins tracking-tighter">{product.name}</h2>
         <div className="text-2xl font-bold font-poppins tracking-tighter">{currency(product.price)}</div>
         <div className="text-sm text-slate-600 font-poppins">Stock: {product.stock}</div>

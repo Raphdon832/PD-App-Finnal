@@ -247,7 +247,7 @@ export default function VendorDashboard({
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
           {products.map((p) => (
-            <div key={p.id} className="border rounded-xl overflow-hidden">
+            <div key={p.id} className="border-[1px] border-gray-200 rounded-[10px] overflow-hidden bg-gray-50">
               <div className="aspect-square bg-slate-100 flex items-center justify-center">
                 {p.image ? (
                   <img src={p.image} alt={p.name} className="object-cover w-full h-full" />

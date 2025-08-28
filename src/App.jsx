@@ -312,10 +312,38 @@ export default function App() {
     setState((s) => ({ ...s, lastMessagesSeenAt: now }));
   }, [me, state.vendors]);
 
+  // --- Navigation history and scroll position ---
+  const [navHistory, setNavHistory] = React.useState([]);
+  const [scrollPositions, setScrollPositions] = React.useState({});
+
+  // Save scroll position before navigating
+  const saveScrollPosition = (screen) => {
+    setScrollPositions((prev) => ({
+      ...prev,
+      [screen]: window.scrollY || window.pageYOffset || 0,
+    }));
+  };
+
+  // Restore scroll position after navigating
+  const restoreScrollPosition = (screen) => {
+    const y = scrollPositions[screen] || 0;
+    setTimeout(() => window.scrollTo(0, y), 0);
+  };
+
   const go = (screen, screenParams = {}) => {
+    saveScrollPosition(state.screen);
+    setNavHistory((h) => [...h, { screen: state.screen, screenParams: state.screenParams }]);
     if (screen === "messages") _setLastMessagesSeenNow();
     if (screen !== "messages") setHideNavForChatThread(false);
     setState((s) => ({ ...s, screen, screenParams }));
+  };
+
+  const goBack = () => {
+    if (navHistory.length === 0) return;
+    const last = navHistory[navHistory.length - 1];
+    setNavHistory((h) => h.slice(0, -1));
+    setState((s) => ({ ...s, screen: last.screen, screenParams: last.screenParams }));
+    restoreScrollPosition(last.screen);
   };
 
   const toast = (msg, type = "info") => {
@@ -736,15 +764,17 @@ export default function App() {
       const phone = vendor?.contact ? normalizePhone(vendor.contact) : "";
       return (
         <div className="space-y-3">
-          <div className="flex items-center gap-2 justify-end">
+          <div className="flex items-center gap-2 justify-between">
+            <Button variant="ghost" onClick={goBack} className="inline-flex items-center gap-2">
+              ← Back
+            </Button>
             {phone && (
-              <Button as="a" href={`tel:${phone}`} className="inline-flex items-center gap-2">
-                <Phone className="h-4 w-4" />
+              <Button as="a" href={`tel:${phone}`} size="sm" className="inline-flex items-center gap-2">
+                <Phone className="h-4 w-4"/>
                 Call to order
               </Button>
             )}
           </div>
-
           <ProductDetail
             product={product}
             vendor={vendor}
@@ -753,7 +783,6 @@ export default function App() {
               go("vendorProfile", { id: v ? v.id : id });
             }}
             onAdd={() => addToCart(state.screenParams.id)}
-            onEnquiry={(vendorId, text) => startChatWithVendor(vendorId, text)}
           />
         </div>
       );
@@ -836,6 +865,7 @@ export default function App() {
         products={state.products.filter((p) => p.vendorId === state.screenParams.id)}
         onMessage={startChatWithVendor}
         onAddToCart={addToCart}
+        goBack={goBack}
       />
     ),
     profile: (

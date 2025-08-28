@@ -6,11 +6,12 @@ import { Button } from "@/components/ui/button";
 import MapPicker from "@/components/MapPicker";
 import { Pill } from "lucide-react";
 
-export default function VendorProfile({ vendor, products, onMessage, onAddToCart }) {
+export default function VendorProfile({ vendor, products, onMessage, onAddToCart, goBack }) {
 	const [text, setText] = useState("");
 	if (!vendor) return <div>Vendor not found.</div>;
 	return (
 		<div className="space-y-4 font-poppins tracking-tighter">
+			<Button variant="ghost" onClick={goBack} className="mb-2">← Back</Button>
 			<Card>
 				<CardContent className="p-4 space-y-3 font-poppins tracking-tighter">
 					<div className="flex items-start justify-between gap-3">
@@ -121,7 +122,7 @@ export default function VendorProfile({ vendor, products, onMessage, onAddToCart
 					{products.map((p) => (
 						<div
 							key={p.id}
-							className="border rounded-xl overflow-hidden font-poppins tracking-tighter"
+							className="border-[1px] border-gray-200 rounded-[10px] overflow-hidden bg-gray-50"
 						>
 							<div className="aspect-square bg-slate-100 flex items-center justify-center">
 								{p.image ? (
