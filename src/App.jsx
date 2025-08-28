@@ -14,6 +14,7 @@ import {
 } from "@/lib/firebase-products";
 import { listenToOrders } from "@/lib/firebase-orders";
 import { listenToProfiles } from "@/lib/firebase-profiles";
+import useProfileListener from "@/lib/useProfileListener";
 
 /* 🔥 vendor-scope listener */
 import { db } from "@/lib/firebase";
@@ -215,6 +216,20 @@ export default function App() {
       userPlace: null,
     })
   );
+
+  // --- Real-time profile sync for current user ---
+  useProfileListener(state.me?.uid, (profile) => {
+    if (!profile) return;
+    setState((s) => ({
+      ...s,
+      me: {
+        ...s.me,
+        ...profile,
+        uid: profile.uid || profile.id,
+        id: profile.uid || profile.id,
+      },
+    }));
+  });
 
   const [hideNavForChatThread, setHideNavForChatThread] = React.useState(false);
 
