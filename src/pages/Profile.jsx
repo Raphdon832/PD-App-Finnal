@@ -134,7 +134,7 @@ export default function Profile({ me, myVendor, upsertVendor, onLogout }){
                       editing ? (
                         <>
                           <Input
-                            value={me?.displayName || ''}
+                            value={profile.displayName || ''}
                             placeholder="Enter your display name"
                             onChange={e => setProfile(v => ({ ...v, displayName: e.target.value }))}
                             className="h-8 px-2 py-1 text-base font-semibold mb-2"
