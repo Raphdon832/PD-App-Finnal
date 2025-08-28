@@ -37,6 +37,31 @@ const etaMinutes = (km) => {
 
 export default function Home({ go, vendors, products, addToCart, userLoc }) {
   const [query, setQuery] = React.useState("");
+  const [showSuggestions, setShowSuggestions] = React.useState(false);
+
+  const pharmacySuggestions = React.useMemo(() => {
+    if (!query.trim()) return [];
+    return vendors.filter(
+      (v) => v.name && v.name.toLowerCase().includes(query.toLowerCase())
+    );
+  }, [vendors, query]);
+
+  const productSuggestions = React.useMemo(() => {
+    if (!query.trim()) return [];
+    return products.filter(
+      (p) => p.name && p.name.toLowerCase().includes(query.toLowerCase())
+    );
+  }, [products, query]);
+
+  const handleSuggestionClick = (type, id) => {
+    setShowSuggestions(false);
+    if (type === "pharmacy") {
+      go("vendorProfile", { id });
+    } else if (type === "product") {
+      go("product", { id });
+    }
+  };
+
   const newArrivals = React.useMemo(() => products.slice(0, 8), [products]);
   const filtered = React.useMemo(
     () => newArrivals.filter((p) => p.name.toLowerCase().includes(query.toLowerCase())),
@@ -52,10 +77,43 @@ export default function Home({ go, vendors, products, addToCart, userLoc }) {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <Input
             className="pl-9 font-poppins tracking-tighter"
-            placeholder="Search medicines"
+            placeholder="Search medicines or pharmacies"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setShowSuggestions(true);
+            }}
+            onFocus={() => setShowSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
           />
+          {showSuggestions && (pharmacySuggestions.length > 0 || productSuggestions.length > 0) && (
+            <div className="absolute left-0 right-0 top-full mt-2 bg-white border border-slate-200 rounded-lg shadow-lg z-50 max-h-72 overflow-auto">
+              {pharmacySuggestions.length > 0 && (
+                <div className="px-3 py-2 text-xs text-slate-500 font-semibold">Pharmacies</div>
+              )}
+              {pharmacySuggestions.map((v) => (
+                <div
+                  key={v.id}
+                  className="px-3 py-2 cursor-pointer hover:bg-blue-50 text-sm font-poppins tracking-tighter"
+                  onMouseDown={() => handleSuggestionClick("pharmacy", v.id)}
+                >
+                  {v.name}
+                </div>
+              ))}
+              {productSuggestions.length > 0 && (
+                <div className="px-3 py-2 text-xs text-slate-500 font-semibold">Products</div>
+              )}
+              {productSuggestions.map((p) => (
+                <div
+                  key={p.id}
+                  className="px-3 py-2 cursor-pointer hover:bg-blue-50 text-sm font-poppins tracking-tighter"
+                  onMouseDown={() => handleSuggestionClick("product", p.id)}
+                >
+                  {p.name} <span className="text-xs text-slate-400">({vendors.find(v => v.id === p.vendorId)?.name || "—"})</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         <Button variant="outline" onClick={() => go("catalog")} className="font-poppins tracking-tighter">
           <SlidersHorizontal className="h-4 w-4 mr-2" />
