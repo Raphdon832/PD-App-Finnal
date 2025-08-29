@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { MessageSquare, ArrowLeft, Store, Phone, Paperclip, X } from "lucide-react";
 import SendIconRaw from "@/assets/icons/Send Button.svg?raw";
 import { listenToConversations, listenToMessages, sendMessage, createConversation } from '@/lib/firebase-chat';
-import { admin } from 'firebase-admin';
 
 function isSameDay(a, b) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
@@ -657,44 +656,3 @@ export default function Messages({
     </div>
   );
 }
-
-// seed-firestore-chat.js
-const serviceAccount = require('./serviceAccountKey.json');
-
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-});
-
-const db = admin.firestore();
-
-async function seedConversation() {
-  // Example IDs (replace with real user/vendor IDs from your app)
-  const vendorId = 'VENDOR_UID_HERE';
-  const customerId = 'CUSTOMER_UID_HERE';
-
-  // Create a conversation document
-  const convRef = await db.collection('conversations').add({
-    vendorId,
-    customerId,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-  });
-
-  // Add a message to the messages subcollection
-  await convRef.collection('messages').add({
-    from: 'customer',
-    text: 'Hello, I want to order a product.',
-    at: admin.firestore.FieldValue.serverTimestamp(),
-    attachments: [],
-  });
-
-  await convRef.collection('messages').add({
-    from: 'vendor',
-    text: 'Sure! What do you need?',
-    at: admin.firestore.FieldValue.serverTimestamp(),
-    attachments: [],
-  });
-
-  console.log('Seeded conversation:', convRef.id);
-}
-
-seedConversation().then(() => process.exit());

@@ -334,7 +334,7 @@ export default function App() {
     saveScrollPosition(state.screen);
     setNavHistory((h) => [...h, { screen: state.screen, screenParams: state.screenParams }]);
     if (screen === "messages") _setLastMessagesSeenNow();
-    if (screen !== "messages") setHideNavForChatThread(false);
+    if (screen !== "messages" ) setHideNavForChatThread(false);
     setState((s) => ({ ...s, screen, screenParams }));
   };
 
