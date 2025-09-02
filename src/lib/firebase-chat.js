@@ -31,10 +31,18 @@ export function listenToConversations(userId, role, cb) {
   });
 }
 
-export async function sendMessage(conversationId, message) {
-  const msgRef = collection(db, 'conversations', conversationId, 'messages');
+// Always use threadId = `${customerId}_${pharmId}` and messages: [{ senderId, text, timestamp }]
+export async function sendMessage(threadId, message) {
+  const payload = {
+    senderId: message.senderId,
+    text: message.text,
+    timestamp: message.timestamp,
+    attachments: message.attachments,
+    replyTo: message.replyTo,
+  };
+  const msgRef = collection(db, 'conversations', threadId, 'messages');
   await addDoc(msgRef, {
-    ...message,
+    ...payload,
     at: serverTimestamp(),
   });
 }

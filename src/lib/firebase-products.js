@@ -43,15 +43,17 @@ export function listenToVendorProducts(vendorId, cb, onError = console.error) {
 }
 
 /** Write helper: coerce types & stamp server time */
+// Always use product.id and product.pharmId for Firestore product documents
 export async function addProduct(product) {
-  // Remove any legacy or seed vendorId (e.g., v_zen, v_green) and always use pharmacist UID
   const payload = {
-    ...product,
-    vendorId: String(product.vendorId), // must be pharmacist UID
-    price: Number(product.price) || 0,
-    stock: Number(product.stock) || 0,
-    category: product.category || "Therapeutic",
-    createdAt: serverTimestamp(),
+    id: product.id,
+    pharmId: product.pharmId,
+    name: product.name,
+    description: product.description,
+    price: product.price,
+    imageUrl: product.imageUrl,
+    category: product.category,
+    createdAt: product.createdAt,
   };
   // Defensive: if vendorId is not a UID, do not write
   if (!/^([A-Za-z0-9_-]{28,})$/.test(payload.vendorId)) throw new Error("Invalid vendorId (must be Firebase UID)");

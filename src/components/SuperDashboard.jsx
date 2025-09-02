@@ -49,8 +49,8 @@ export default function SuperDashboard() {
             </thead>
             <tbody>
               {users.map(u => (
-                <tr key={u.id} className="odd:bg-white even:bg-slate-50">
-                  <td className="p-2 border">{u.id}</td>
+                <tr key={u.uid} className="odd:bg-white even:bg-slate-50">
+                  <td className="p-2 border">{u.uid}</td>
                   <td className="p-2 border">{u.name}</td>
                   <td className="p-2 border">{u.email}</td>
                   <td className="p-2 border">{u.role}</td>
@@ -80,7 +80,7 @@ export default function SuperDashboard() {
                 <tr key={p.id} className="odd:bg-white even:bg-slate-50">
                   <td className="p-2 border">{p.id}</td>
                   <td className="p-2 border">{p.name}</td>
-                  <td className="p-2 border">{p.vendorId}</td>
+                  <td className="p-2 border">{p.pharmId}</td>
                   <td className="p-2 border">{p.price}</td>
                   <td className="p-2 border">{p.stock}</td>
                 </tr>
@@ -105,7 +105,7 @@ export default function SuperDashboard() {
               {orders.map(o => (
                 <tr key={o.id} className="odd:bg-white even:bg-slate-50">
                   <td className="p-2 border">{o.id}</td>
-                  <td className="p-2 border">{o.userId || o.customerId || o.vendorId}</td>
+                  <td className="p-2 border">{o.customerId || o.pharmId}</td>
                   <td className="p-2 border">{o.total}</td>
                   <td className="p-2 border">{o.createdAt ? new Date(o.createdAt).toLocaleString() : ""}</td>
                 </tr>

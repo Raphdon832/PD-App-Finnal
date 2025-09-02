@@ -10,6 +10,7 @@ export default function Cart({ cart, productById, setQty, removeLine, total, onC
   return (
     <div className="space-y-3 max-w-2xl mx-auto font-poppins tracking-tighter">
       {cart.map(ci => {
+        // Always use product.id and product.pharmId for cart items
         const p = productById(ci.productId);
         return (
           <Card key={ci.id}>

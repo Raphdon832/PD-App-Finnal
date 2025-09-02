@@ -106,11 +106,19 @@ export default function VendorDashboard({
 		return vid ? String(vid) : null;
 	};
 
+	// Always use product.id and product.pharmId for product references
+	const handleAddProduct = (product) =>
+		addProduct({
+			id: product.id,
+			pharmId: vendorId,
+			...product,
+		});
+
 	const onSubmit = () => {
 		if (!form.name.trim()) return alert("Enter product name");
 		const vendorId = ensureVendorId();
 		if (!vendorId) return alert("Setting up your vendor ID. Try again.");
-		addProduct({
+		handleAddProduct({
 			...form,
 			price: Number(form.price) || 0,
 			stock: Number(form.stock) || 0,
@@ -175,7 +183,7 @@ export default function VendorDashboard({
 		let added = 0;
 		for (const prod of normalized) {
 			try {
-				await addProduct(prod);
+				await handleAddProduct(prod);
 				added++;
 			} catch (e) {
 				// Optionally handle error

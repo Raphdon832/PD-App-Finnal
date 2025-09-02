@@ -33,3 +33,8 @@ export default function Orders({ orders, productById }){
     </div>
   );
 }
+
+// Always use order.id, order.customerId, order.pharmId, and items: [{ productId, qty, price }]
+const OrderItem = ({ o, productById }) => {
+  // Use o.customerId, o.pharmId, o.items
+};

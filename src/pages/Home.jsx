@@ -45,14 +45,14 @@ export default function Home({ go, vendors, products, addToCart, userLoc }) {
 	const pharmacySuggestions = React.useMemo(() => {
 		if (!query.trim()) return [];
 		return vendors.filter((v) =>
-			v.name.toLowerCase().includes(query.toLowerCase())
+			v && typeof v.name === 'string' && v.name.toLowerCase().includes(query.toLowerCase())
 		);
 	}, [vendors, query]);
 
 	const productSuggestions = React.useMemo(() => {
 		if (!query.trim()) return [];
 		return products.filter((p) =>
-			p.name.toLowerCase().includes(query.toLowerCase())
+			p && typeof p.name === 'string' && p.name.toLowerCase().includes(query.toLowerCase())
 		);
 	}, [products, query]);
 
@@ -69,13 +69,14 @@ export default function Home({ go, vendors, products, addToCart, userLoc }) {
 	const filtered = React.useMemo(
 		() =>
 			newArrivals.filter((p) =>
-				p.name.toLowerCase().includes(query.toLowerCase())
+				p && typeof p.name === 'string' && p.name.toLowerCase().includes(query.toLowerCase())
 			),
 		[newArrivals, query]
 	);
 
+	// Always use product.id and product.pharmId for product references
 	const vendorById = React.useCallback(
-		(id) => vendors.find((v) => v.id === id),
+		(pharmId) => vendors.find((v) => v.uid === pharmId),
 		[vendors]
 	);
 

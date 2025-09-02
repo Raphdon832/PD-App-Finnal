@@ -2,8 +2,11 @@
 import { Button } from "@/components/ui/button";
 import { Pill } from "lucide-react";
 import { currency } from "@/lib/utils";
+
+// Always use product.id and product.pharmId for product references
 export default function ProductDetail({ product, vendor, onVendor, onAdd, goBack }){
   if (!product) return <div>Product not found.</div>;
+  // Use product.id, product.pharmId
   return (
     <div className="grid md:grid-cols-2 gap-6">
       <div className="aspect-square rounded-2xl overflow-hidden bg-slate-100 flex items-center justify-center">

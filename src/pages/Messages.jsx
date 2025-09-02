@@ -485,6 +485,9 @@ function ChatThreadScreen({
   );
 }
 
+// Always use threadId = `${customerId}_${pharmId}` and messages: [{ senderId, text, timestamp }]
+const getThreadId = (customerId, pharmId) => `${customerId}_${pharmId}`;
+
 export default function Messages({
   vendors = [],
   threads = {},

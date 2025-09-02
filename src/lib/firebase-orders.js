@@ -9,7 +9,16 @@ export function listenToOrders(cb) {
 }
 
 export async function addOrder(order) {
-  const ref = await addDoc(collection(db, 'orders'), order);
+  const payload = {
+    id: order.id,
+    customerId: order.customerId,
+    pharmId: order.pharmId,
+    items: order.items,
+    status: order.status,
+    deliveryTime: order.deliveryTime,
+    createdAt: order.createdAt,
+  };
+  const ref = await addDoc(collection(db, 'orders'), payload);
   return ref.id;
 }
 

@@ -116,6 +116,30 @@ export default function Profile({ me, myVendor, upsertVendor, onLogout }){
     return () => clearTimeout(addressTimeout.current);
   }, [addressQuery, editing]);
 
+  const handleProfileUpdate = (profile) => {
+    // Always use user.uid, type, name, email, phone, address, location, createdAt
+    const vendorUid = (myVendor && (myVendor.uid || myVendor.id)) || (me && (me.uid || me.id)) || uid();
+    const v = {
+      ...(myVendor || {}),
+      id: (myVendor && myVendor.id) || `v_${vendorUid}`,
+      uid: vendorUid,
+      name: profile.name.trim(),
+      bio: myVendor?.bio || "",
+      address: profile.address.trim(),
+      contact: profile.contact.trim(),
+      email: profile.email || "",
+      etaMins: myVendor?.etaMins ?? 30,
+      lat: profile.lat,
+      lng: profile.lng,
+      dp: dp || "",
+      images: images || [],
+    };
+    upsertVendor(v);
+    setInitialProfile(profile);
+    setEditing(false);
+    alert("Vendor profile saved");
+  };
+
   return (
     <div className="max-w-md mx-auto space-y-4 font-poppins tracking-tighter">
       <Card>
@@ -330,30 +354,7 @@ export default function Profile({ me, myVendor, upsertVendor, onLogout }){
               </Button>
             ) : (
               <Button
-                onClick={() => {
-                  if (!profile.name.trim()) return alert("Enter pharmacy name");
-                  // Always preserve vendor UID if it exists, or generate if missing
-                  const vendorUid = (myVendor && (myVendor.uid || myVendor.id)) || (me && (me.uid || me.id)) || uid();
-                  const v = {
-                    ...(myVendor || {}),
-                    id: (myVendor && myVendor.id) || `v_${vendorUid}`,
-                    uid: vendorUid,
-                    name: profile.name.trim(),
-                    bio: myVendor?.bio || "",
-                    address: profile.address.trim(),
-                    contact: profile.contact.trim(),
-                    email: profile.email || "",
-                    etaMins: myVendor?.etaMins ?? 30,
-                    lat: profile.lat,
-                    lng: profile.lng,
-                    dp: dp || "",
-                    images: images || [],
-                  };
-                  upsertVendor(v);
-                  setInitialProfile(profile);
-                  setEditing(false);
-                  alert("Vendor profile saved");
-                }}
+                onClick={() => handleProfileUpdate(profile)}
                 className="w-full"
               >
                 Save Profile

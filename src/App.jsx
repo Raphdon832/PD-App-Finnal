@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { MapPin, Timer, CheckCircle, AlertTriangle, Phone } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { loadFromLS, saveToLS, uid } from "@/lib/utils";
+import { uid } from "@/lib/utils";
 import { seedVendors as baseSeedVendors } from "@/lib/data";
 import pdLogo from "@/assets/pd-logo.png";
 import {
@@ -200,22 +200,20 @@ function useDisableIOSZoom() {
 export default function App() {
   useDisableIOSZoom();
 
-  const [state, setState] = React.useState(() =>
-    loadFromLS("PD_STATE", {
-      screen: "landing",
-      screenParams: {},
-      me: null,
-      vendors: seedVendors,
-      products: [],
-      cart: [],
-      orders: [],
-      conversations: [],
-      lastMessagesSeenAt: 0,
-      toasts: [],
-      userLoc: null,
-      userPlace: null,
-    })
-  );
+  const [state, setState] = React.useState({
+    screen: "landing",
+    screenParams: {},
+    me: null,
+    vendors: [],
+    products: [],
+    cart: [],
+    orders: [],
+    conversations: [],
+    lastMessagesSeenAt: 0,
+    toasts: [],
+    userLoc: null,
+    userPlace: null,
+  });
 
   // --- Real-time profile sync for current user ---
   useProfileListener(state.me?.uid, (profile) => {
@@ -223,10 +221,15 @@ export default function App() {
     setState((s) => ({
       ...s,
       me: {
-        ...s.me,
         ...profile,
-        uid: profile.uid || profile.id,
-        id: profile.uid || profile.id,
+        uid: profile.uid,
+        type: profile.type, // "customer" | "pharmacy"
+        name: profile.name,
+        email: profile.email,
+        phone: profile.phone,
+        address: profile.address,
+        location: profile.location,
+        createdAt: profile.createdAt,
       },
     }));
   });
@@ -258,9 +261,6 @@ export default function App() {
     });
     return () => unsub();
   }, []);
-
-  // save/restore
-  useEffect(() => saveToLS("PD_STATE", state), [state]);
 
   // Geolocation
   useEffect(() => {
@@ -416,12 +416,18 @@ export default function App() {
   }, []);
 
   // Firestore mutations
+  // Products CRUD
   const addProduct = async (p) => {
     try {
       await addProductToFirestore({
-        ...p,
-        vendorId: String(lockedVendorId || me?.uid || ""),
-        ownerUid: String(lockedVendorId || me?.uid || ""), // Required by Firestore rules
+        id: p.id,
+        pharmId: me?.uid, // always pharmacy UID
+        name: p.name,
+        description: p.description,
+        price: p.price,
+        imageUrl: p.imageUrl,
+        category: p.category,
+        createdAt: new Date().toISOString(),
       });
       console.log("Product added successfully");
     } catch (e) {
@@ -429,8 +435,8 @@ export default function App() {
       alert("Failed to add product: " + e.message);
     }
   };
-  const removeProduct = async (pid) => {
-    await deleteProduct(pid);
+  const removeProduct = async (id) => {
+    await deleteProduct(id);
   };
 
   // lookups / UI helpers (unchanged except where they read me.uid)
@@ -485,7 +491,7 @@ export default function App() {
         cart = s.cart.map((ci) =>
           ci.productId === productId ? { ...ci, qty: Math.min(ci.qty + 1, p.stock) } : ci
         );
-      else cart = [...s.cart, { id: uid(), productId, vendorId: p.vendorId, qty: 1 }];
+      else cart = [...s.cart, { productId, qty: 1, price: p.price }];
       return { ...s, cart };
     });
   const setQty = (lineId, qty) =>
@@ -498,11 +504,16 @@ export default function App() {
   const checkout = () =>
     setState((s) => {
       if (!s.cart.length) return s;
-      const total = s.cart.reduce((sum, ci) => {
-        const p = s.products.find((p) => p.id === ci.productId);
-        return sum + (p ? p.price * ci.qty : 0);
-      }, 0);
-      const order = { id: uid(), items: s.cart, total, createdAt: new Date().toISOString() };
+      const total = s.cart.reduce((sum, ci) => sum + ci.price * ci.qty, 0);
+      const order = {
+        id: uid(),
+        customerId: me?.uid,
+        pharmId: myVendor?.uid || myVendor?.id,
+        items: s.cart.map((ci) => ({ productId: ci.productId, qty: ci.qty, price: ci.price })),
+        status: "pending",
+        deliveryTime: null,
+        createdAt: new Date().toISOString(),
+      };
       toast("Order placed. Pharmacist will confirm shortly.", "success");
       return { ...s, orders: [order, ...s.orders], cart: [], screen: "orders" };
     });
@@ -546,46 +557,28 @@ export default function App() {
     [state.conversations]
   );
 
-  const sendConversationMessage = React.useCallback(
-    (vendorId, customerId, payload, fromRole, customerNameOpt) => {
-      const text = payload?.text || "";
-      const attachments = Array.isArray(payload?.attachments) ? payload.attachments : [];
-      const replyTo = payload?.replyTo || null;
-      if (!vendorId || !customerId) return;
-      if (!text.trim() && attachments.length === 0) return;
-
-      setState((s) => {
-        const list = asArray(s.conversations);
-        const idx = list.findIndex((c) => c.vendorId === vendorId && c.customerId === customerId);
-        const nowIso = new Date().toISOString();
-        const newMsg = { id: uid(), from: fromRole, text: text.trim(), at: nowIso, attachments, replyTo };
-
-        if (idx === -1) {
-          const conv = {
-            id: uid(),
-            vendorId,
-            customerId,
-            customerName: customerNameOpt || undefined,
-            lastAt: Date.now(),
-            messages: [newMsg],
-          };
-          return { ...s, conversations: [conv, ...list] };
-        } else {
-          const conv = list[idx];
-          const updated = {
-            ...conv,
-            customerName: conv.customerName || customerNameOpt || undefined,
-            lastAt: Date.now(),
-            messages: [...asArray(conv.messages), newMsg],
-          };
-          const next = [...list];
-          next[idx] = updated;
-          return { ...s, conversations: next };
-        }
-      });
-    },
-    []
-  );
+  const getThreadId = (customerId, pharmId) => `${customerId}_${pharmId}`;
+  const sendConversationMessage = (pharmId, customerId, payload, fromRole) => {
+    const threadId = getThreadId(customerId, pharmId);
+    const text = payload?.text || "";
+    const attachments = Array.isArray(payload?.attachments) ? payload.attachments : [];
+    const replyTo = payload?.replyTo || null;
+    if (!pharmId || !customerId) return;
+    if (!text.trim() && attachments.length === 0) return;
+    setState((s) => {
+      const list = asArray(s.chats || []);
+      let chat = list.find((c) => c.threadId === threadId);
+      const nowIso = new Date().toISOString();
+      const newMsg = { senderId: fromRole === "customer" ? customerId : pharmId, text: text.trim(), timestamp: nowIso, attachments, replyTo };
+      if (!chat) {
+        chat = { threadId, messages: [newMsg] };
+        return { ...s, chats: [chat, ...list] };
+      } else {
+        chat = { ...chat, messages: [...chat.messages, newMsg] };
+        return { ...s, chats: list.map((c) => (c.threadId === threadId ? chat : c)) };
+      }
+    });
+  };
 
   const startChatWithVendor = (vendorId, initialText) => {
     const vId = vendorId;

@@ -6,6 +6,8 @@ import pdLogo from "@/assets/pd-logo.png";
 import { ArrowLeft } from "lucide-react";
 import MapPicker from "@/components/MapPicker";
 import { signUpWithEmail, signInWithEmailAndEnsureProfile } from "@/lib/auth-firebase";
+import { setDoc, doc, getDoc, updateDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 function isValidEmail(email) {
   return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
@@ -28,22 +30,18 @@ export default function AuthFlow({ role = "customer", onDone, onBack }) {
       if (mode === "signin") {
         if (!email.trim()) throw new Error("Enter your email");
         if (!password) throw new Error("Enter your password");
-        const { uid, role: userRole } = await signInWithEmailAndEnsureProfile({ email, password, displayName: name.trim() });
-        if (userRole !== role) throw new Error(`This account is registered as ${userRole}`);
-        if (userRole === "pharmacist") {
-          onDone({
-            uid,
-            role: userRole,
-            name: name.trim(),
-            email,
-            phone,
-            pharmacyName: pharmacyName.trim(),
-            pharmacyAddress: address.trim(),
-            pharmacyLocation: pin ? { lat: pin.lat, lng: pin.lng } : undefined
-          });
-        } else {
-          onDone({ uid, role: userRole, name: name.trim(), email, phone });
-        }
+        const { uid, type } = await signInWithEmailAndEnsureProfile({ email, password, displayName: name.trim() });
+        if (type !== role) throw new Error(`This account is registered as ${type}`);
+        onDone({
+          uid,
+          type,
+          name: name.trim(),
+          email,
+          phone,
+          pharmacyName: pharmacyName.trim(),
+          pharmacyAddress: address.trim(),
+          pharmacyLocation: pin ? { lat: pin.lat, lng: pin.lng } : undefined
+        });
         return;
       }
       if (!name.trim()) throw new Error(isCustomer ? "Enter your display name" : "Enter contact name");
@@ -51,13 +49,13 @@ export default function AuthFlow({ role = "customer", onDone, onBack }) {
       if (!password || password.length < 7) throw new Error("Password must be at least 7 characters");
       if (isCustomer) {
         if (!phone.trim()) throw new Error("Enter your phone number");
-        const { uid, role: userRole } = await signUpWithEmail({ email, password, phone, role: "customer", displayName: name.trim() });
-        onDone({ uid, role: userRole, name: name.trim(), email, phone });
+        const { uid, type } = await signUpWithEmail({ email, password, phone, role: "customer", displayName: name.trim() });
+        onDone({ uid, type, name: name.trim(), email, phone });
       } else {
         if (!pharmacyName.trim()) throw new Error("Enter pharmacy name");
         if (!address.trim()) throw new Error("Enter pharmacy address");
         if (!pin?.lat || !pin?.lng) throw new Error("Tap the map to set the pharmacy location");
-        const { uid, role: userRole } = await signUpWithEmail({
+        const { uid, type } = await signUpWithEmail({
           email,
           password,
           phone,
@@ -65,7 +63,7 @@ export default function AuthFlow({ role = "customer", onDone, onBack }) {
         });
         onDone({
           uid,
-          role: userRole,
+          type,
           name: name.trim(),
           email,
           phone,
@@ -76,6 +74,42 @@ export default function AuthFlow({ role = "customer", onDone, onBack }) {
       }
     } catch (e) {
       alert(e.message || "Something went wrong");
+    }
+  };
+
+  // Ensure user profile always sets type (role) on signup
+  const handleSignUp = async ({ email, password, name, phone, address, location, type }) => {
+    try {
+      const { uid } = await signUpWithEmail({ email, password, phone, role: "customer", displayName: name.trim() });
+      await setDoc(doc(db, "users", uid), {
+        uid,
+        type: type || "customer", // default to customer if missing
+        name,
+        email,
+        phone,
+        address,
+        location,
+        createdAt: new Date().toISOString()
+      });
+      return { uid, type: type || "customer" };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  };
+
+  // When signing in, if type is missing, set it to "customer" or "pharmacy" based on context
+  const handleSignIn = async ({ email, password }) => {
+    try {
+      const { uid } = await signInWithEmailAndEnsureProfile({ email, password });
+      const userDoc = await getDoc(doc(db, "users", uid));
+      let userData = userDoc.data();
+      if (!userData.type) {
+        userData.type = "customer"; // or infer from context
+        await updateDoc(doc(db, "users", uid), { type: userData.type });
+      }
+      return { uid, type: userData.type };
+    } catch (error) {
+      throw new Error(error.message);
     }
   };
 

@@ -9,6 +9,10 @@ import { Pill } from "lucide-react";
 export default function VendorProfile({ vendor, products, onMessage, onAddToCart, goBack }) {
 	const [text, setText] = useState("");
 	if (!vendor) return <div>Vendor not found.</div>;
+
+	// Always use vendor.uid and product.id, product.pharmId
+	const handleMessage = (pharmId, text) => onMessage(pharmId, text.trim());
+
 	return (
 		<div className="space-y-4 font-poppins tracking-tighter">
 			<Button variant="ghost" onClick={goBack} className="mb-2">← Back</Button>
@@ -104,7 +108,7 @@ export default function VendorProfile({ vendor, products, onMessage, onAddToCart
 						<Button
 							onClick={() => {
 								if (text.trim()) {
-									onMessage(vendor.uid || vendor.id, text.trim());
+									handleMessage(vendor.uid || vendor.id, text);
 									setText("");
 								}
 							}}
